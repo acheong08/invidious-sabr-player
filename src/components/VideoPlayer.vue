@@ -239,7 +239,11 @@ async function initializePlayer() {
         rebufferingGoal: 0.01,
         bufferBehind: 300,
         retryParameters: {
-          maxAttempts: 10
+          maxAttempts: 30,
+          baseDelay: 1500,
+          backoffFactor: 2.5,
+          fuzzFactor: 0.7,
+          timeout: 120000
         },
         stallThreshold: 2,
         stallSkip: 0.5

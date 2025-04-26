@@ -90,7 +90,6 @@
   margin-top: 12px;
   font-size: 14px;
   line-height: 1.5;
-  max-height: 100px;
   overflow: hidden;
   position: relative;
   color: #fff;

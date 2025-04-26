@@ -32,55 +32,41 @@ export class SabrUmpParser {
   async parse(): Promise<shaka.extern.Response> {
     const reader = this.response.clone().body!.getReader();
 
-    try {
-      while (!this.abortController.signal.aborted) {
-        let value, done;
-        try {
-          ({ value, done } = await reader.read());
-        } catch (error) {
-          throw this.createRecoverableError(
-            `Failed to read from stream: ${(error as Error).message}`,
-            this.decodedStreamingContext
-          );
+    while (!this.abortController.signal.aborted) {
+      const { value, done } = await reader.read();
+
+      if (done) {
+        // If we got here, we read the whole stream but there was no data; it means we must follow this redirect.
+        if (this.decodedStreamingContext.isSABR && this.decodedStreamingContext.streamInfo?.redirect) {
+          return this.createShakaResponse();
         }
 
-        if (done || !value) {
-          // If we got here, we read the whole stream but there was no data; it means we must follow this redirect.
-          if (this.decodedStreamingContext.isSABR && this.decodedStreamingContext.streamInfo?.redirect) {
-            return this.createShakaResponse();
-          }
-
-          // We should never reach here, but if we do, it means we got nothing at all.
-          throw this.createRecoverableError('Empty response with no redirect information', this.decodedStreamingContext);
-        }
-
-        let chunk;
-
-        if (this.partialPart) {
-          chunk = this.partialPart.data;
-          chunk.append(value);
-        } else {
-          chunk = new GoogleVideo.ChunkedDataBuffer([ value ]);
-        }
-
-        const result = await this.process(chunk);
-        if (result) {
-          if (this.shouldThrowServerError(result)) {
-            throw this.createRecoverableError('Server streaming error', this.decodedStreamingContext);
-          }
-          return result;
-        }
+        // We should never reach here, but if we do, it means we got nothing at all.
+        throw this.createRecoverableError('Empty response with no redirect information', this.decodedStreamingContext);
       }
 
-      // Never happens. Here just in case.
-      throw this.createRecoverableError('Couldn\'t read any data from the stream', this.decodedStreamingContext);
-    } finally {
-      try {
-        reader.releaseLock();
-      } catch (e) { /* no-op */ }
-    }
-  }
+      let chunk;
 
+      if (this.partialPart) {
+        chunk = this.partialPart.data;
+        chunk.append(value);
+      } else {
+        chunk = new GoogleVideo.ChunkedDataBuffer([ value ]);
+      }
+
+      const result = await this.process(chunk);
+      if (result) {
+        if (this.shouldThrowServerError(result)) {
+          throw this.createRecoverableError('Server streaming error', this.decodedStreamingContext);
+        }
+        return result;
+      }
+    }
+
+    // Never happens. Here just in case.
+    throw this.createRecoverableError('Couldn\'t read any data from the stream', this.decodedStreamingContext);
+  }
+  
   private shouldThrowServerError(result: shaka.extern.Response): boolean {
     return !result.data.byteLength && (
       !!this.decodedStreamingContext.error ||

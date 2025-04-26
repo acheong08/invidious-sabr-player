@@ -88,7 +88,7 @@ export function createSegmentCacheKeyFromContext(
 export function getUniqueFormatId(format: Misc.Format) {
   if (format.has_video)
     return format.itag.toString();
-  
+
   const uid_parts = [ format.itag.toString() ];
 
   if (format.audio_track) {

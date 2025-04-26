@@ -80,7 +80,7 @@ export class HttpFetchPlugin {
       timedOut: false
     };
 
-    const pendingRequest = HttpFetchPlugin.request_(uri, requestType, init, controller, abortStatus, headersReceived, sabrStreamingContext);
+    const pendingRequest = HttpFetchPlugin.request_(uri, request, requestType, init, controller, abortStatus, headersReceived, sabrStreamingContext);
 
     const op = new shaka.util.AbortableOperation(pendingRequest, () => {
       abortStatus.canceled = true;
@@ -104,6 +104,7 @@ export class HttpFetchPlugin {
 
   private static async request_(
     uri: string,
+    request: shaka.extern.Request,
     requestType: shaka.net.NetworkingEngine.RequestType,
     init: RequestInit,
     abortController: AbortController,
@@ -131,7 +132,7 @@ export class HttpFetchPlugin {
 
       // Handle UMP responses
       if (init.method !== 'HEAD' && decodedStreamingContext && response.headers.get('content-type') === 'application/vnd.yt-ump') {
-        const parser = new SabrUmpParser(response, decodedStreamingContext, uri, requestType, abortController);
+        const parser = new SabrUmpParser(response, decodedStreamingContext, uri, request, requestType, abortController);
         return parser.parse();
       }
 
@@ -165,7 +166,7 @@ export class HttpFetchPlugin {
       headers['X-Streaming-Context'] = streamingContext;
     }
 
-    return HttpFetchPlugin.makeResponse(headers, arrayBuffer!, response.status, uri, response.url, requestType);
+    return HttpFetchPlugin.makeResponse(headers, arrayBuffer!, response.status, uri, response.url, request, requestType);
   }
 
   public static makeResponse(
@@ -174,6 +175,7 @@ export class HttpFetchPlugin {
     status: number,
     uri: string,
     responseURL: string,
+    request: shaka.extern.Request,
     requestType: shaka.net.NetworkingEngine.RequestType
   ): shaka.extern.Response {
     if (status >= 200 && status <= 299 && status !== 202) {
@@ -183,6 +185,7 @@ export class HttpFetchPlugin {
         data,
         status,
         headers,
+        originalRequest: request,
         fromCache: !!headers['x-shaka-from-cache']
       };
     }

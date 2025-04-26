@@ -24,6 +24,7 @@ export class SabrUmpParser {
     private response: Response,
     private decodedStreamingContext: SabrStreamingContext,
     private uri: string,
+    private request: shaka.extern.Request,
     private requestType: shaka.net.NetworkingEngine.RequestType,
     private abortController: AbortController
   ) { }
@@ -243,6 +244,7 @@ export class SabrUmpParser {
       this.response.status,
       this.uri,
       this.response.url,
+      this.request,
       this.requestType
     );
   }

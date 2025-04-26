@@ -121,7 +121,7 @@ export class HttpFetchPlugin {
     try {
       // Try to use cached segment first
       if (decodedStreamingContext && decodedStreamingContext.format) {
-        const cachedResponse = retrieveCachedSegment(decodedStreamingContext, requestType, uri);
+        const cachedResponse = retrieveCachedSegment(decodedStreamingContext, request, requestType, uri);
         if (cachedResponse) {
           return cachedResponse;
         }

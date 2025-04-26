@@ -25,12 +25,14 @@ export function cacheSegment(segment: Segment, format: Misc.Format) {
 /**
  * Retrieves a cached segment based on streaming context
  * @param decodedStreamingContext - The SABR streaming context
+ * @param request - The original request.
  * @param requestType - The Shaka request type
  * @param uri - The request URI
  * @returns A Shaka response object or undefined if not found
  */
 export function retrieveCachedSegment(
   decodedStreamingContext: SabrStreamingContext,
+  request: shaka.extern.Request,
   requestType: shaka.net.NetworkingEngine.RequestType,
   uri: string
 ): shaka.extern.Response | null {
@@ -69,6 +71,7 @@ export function retrieveCachedSegment(
       200,
       uri,
       uri,
+      request,
       requestType
     );
   }

@@ -57,7 +57,7 @@ export function createSegmentCacheKey(
   if (isInit && format) {
     return `${mediaHeader.itag}:${mediaHeader.xtags || ''}:${format.content_length || ''}:${format.mime_type || ''}`;
   }
-  return `${mediaHeader.startDataRange || '0'}-${mediaHeader.itag}-${mediaHeader.xtags || ''}`;
+  return `${mediaHeader.startRange || '0'}-${mediaHeader.itag}-${mediaHeader.xtags || ''}`;
 }
 
 /**

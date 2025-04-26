@@ -177,7 +177,7 @@ export class HttpFetchPlugin {
     responseURL: string,
     request: shaka.extern.Request,
     requestType: shaka.net.NetworkingEngine.RequestType
-  ): shaka.extern.Response {
+  ): shaka.extern.Response & { originalRequest: shaka.extern.Request } {
     if (status >= 200 && status <= 299 && status !== 202) {
       return {
         uri: responseURL || uri,

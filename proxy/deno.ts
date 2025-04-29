@@ -52,7 +52,7 @@ const handler = async (request: Request): Promise<Response> => {
     return response;
   }
 
-  const url = new URL(request.url, 'http://localhost/');
+  const url = new URL(request.url, 'https://iv3.duti.dev/');
   if (!url.searchParams.has('__host')) {
     return new Response(
       'Request is formatted incorrectly. Please include __host in the query string.',
@@ -117,4 +117,4 @@ const handler = async (request: Request): Promise<Response> => {
   });
 };
 
-await serve(handler, { port });
+await serve(handler, { hostname: '0.0.0.0', port: port });

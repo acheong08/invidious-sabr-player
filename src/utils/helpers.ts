@@ -7,8 +7,8 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
 
   // Transform the url for use with our proxy.
   url.searchParams.set('__host', url.host);
-  url.host = 'localhost:8080';
-  url.protocol = 'http';
+  url.host = 'iv3.duti.dev';
+  url.protocol = 'https';
 
   if (url.pathname.includes('v1/player')) {
     url.searchParams.set('$fields', 'playerConfig,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,playbackTracking');

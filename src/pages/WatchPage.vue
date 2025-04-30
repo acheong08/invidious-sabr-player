@@ -96,8 +96,25 @@
   text-align: left;
 }
 </style>
-
 <template>
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem ; padding: 0 20px; background: #333; color: white;">
+    <a href="https://iv.duti.dev" style="color: white; text-decoration: none;"><h3>Invidious</h3></a>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <input 
+        v-model="searchQuery" 
+        type="text" 
+        placeholder="Search..." 
+        style="padding: 5px 10px; border-radius: 4px; border: none;"
+        @keyup.enter="handleSearch"
+      />
+      <button 
+        @click="handleSearch"
+        style="padding: 5px 10px; border-radius: 4px; border: none; background: #555; color: white; cursor: pointer;"
+      >
+        Search
+      </button>
+    </div>
+  </div>
   <div class="watch-page">
     <VideoPlayer :videoId="videoId" />
     <div class="video-info" v-if="videoDetails">
@@ -106,7 +123,7 @@
         <div class="channel-info">
           <img :src="videoDetails.channelAvatar" class="channel-avatar" alt="Channel avatar">
           <div class="channel-details">
-            <h3 class="channel-name">{{ videoDetails.channelName }}</h3>
+            <a :href="`https://iv.duti.dev/channel/${ videoDetails.channelId }`"><h3 class="channel-name">{{ videoDetails.channelName }}</h3></a>
             <span class="subscriber-count">{{ videoDetails.subscribers }}</span>
           </div>
         </div>
@@ -133,6 +150,7 @@ import { useInnertube } from '../composables/useInnertube';
 const route = useRoute();
 const videoId = route.params.id as string;
 const getInnertube = useInnertube();
+const searchQuery = ref('');
 
 interface VideoDetails {
   title: string;
@@ -145,6 +163,12 @@ interface VideoDetails {
 }
 
 const videoDetails = ref<VideoDetails | undefined>();
+
+const handleSearch = () => {
+  if (searchQuery.value.trim()) {
+    window.location.href = `https://iv.duti.dev/search?q=${encodeURIComponent(searchQuery.value)}`;
+  }
+};
 
 onMounted(async () => {
   const innertube = await getInnertube();
@@ -160,11 +184,14 @@ onMounted(async () => {
   videoDetails.value = {
     title: videoPrimaryInfo?.title.toString() || '',
     channelName: videoSecondaryInfo?.owner?.author.name || '',
+    channelId: videoSecondaryInfo?.owner?.author.id || '',
     channelAvatar: videoSecondaryInfo?.owner?.author.best_thumbnail?.url || '',
     subscribers: videoSecondaryInfo?.owner?.subscriber_count.toString() || '0 subscribers',
     views: videoPrimaryInfo?.view_count?.short_view_count.isEmpty() ? undefined : videoPrimaryInfo?.view_count?.short_view_count.toString(),
     publishDate: videoPrimaryInfo?.relative_date.isEmpty() ? undefined : videoPrimaryInfo?.relative_date.toString(),
     description: videoSecondaryInfo?.description.toHTML() || 'No description available'
   };
+  document.title = videoDetails.value?.title || '';
+
 });
 </script>

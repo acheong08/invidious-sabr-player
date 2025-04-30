@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -8,7 +9,9 @@ import (
 
 func main() {
 	// Configure server
-	addr := "100.64.0.6:5173"
+  addr := flag.String("addr", "100.64.0.6:5173", "server address")
+	flag.Parse()
+
 	distDir := "./dist" // Change if your build is elsewhere
 
 	// File server for static assets
@@ -17,11 +20,10 @@ func main() {
 
 	// Serve index.html for all other routes
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-    log.Println(r.URL)
 		http.ServeFile(w, r, filepath.Join(distDir, "index.html"))
 	})
 
 	// Start server
-	log.Printf("Serving Vite app on http://%s\n", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Printf("Serving Vite app on http://%s\n", *addr)
+	log.Fatal(http.ListenAndServe(*addr, nil))
 }

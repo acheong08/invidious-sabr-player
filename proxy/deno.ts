@@ -33,10 +33,6 @@ function copyHeader(headerName: string, to: Headers, from: Headers) {
 const handler = async (request: Request): Promise<Response> => {
   const origin = request.headers.get('origin') || '';
 
-  request.headers.forEach((value, key) => {
-    console.log(key, value);
-  });
-
   // If options send do CORS preflight
   if (request.method === 'OPTIONS') {
     const response = new Response('', {

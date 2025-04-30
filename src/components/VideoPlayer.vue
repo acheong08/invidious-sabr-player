@@ -14,7 +14,7 @@ video {
 }
 
 .controls {
-  display: flex;
+  display: none;
   gap: 1rem;
   padding: 1rem;
   background: #202020;

@@ -1,3 +1,53 @@
+# SABR Player
+
+Sample Caddyfile
+
+```js
+iv.duti.dev {
+  handle /watch {
+    redir /watch "https://iv2.duti.dev/watch/{query.v}"
+  }
+}
+
+iv2.duti.dev {
+ handle /watch {
+  redir /watch /watch/{query.v}
+ }
+
+ @watch {
+   path /watch/*
+   path /assets/*
+ }
+
+ handle @watch {
+  reverse_proxy 100.64.0.6:5173
+ }
+ handle /* {
+  redir /* https://iv.duti.dev{uri}
+ }
+}
+
+iv3.duti.dev {
+ header {
+  Access-Control-Allow-Methods "GET, POST, OPTIONS"
+  Access-Control-Allow-Headers "Origin, Content-Type, Accept, Authorization"
+ }
+ reverse_proxy 100.64.0.6:8080
+}
+```
+
+```sh
+deno run --allow-net --allow-read --allow-write ./proxy/deno.ts
+bunx vite build
+go run . -addr 127.0.0.1:5173
+```
+
+<details>
+
+<summary>
+Original README:
+</summary>
+
 # UMP-SABR Shaka Demo
 
 This is a web app demonstrating a SABR/UMP player implementation using Shaka Player. It supports all streaming formats YouTube currently uses.
@@ -11,11 +61,13 @@ This is a web app demonstrating a SABR/UMP player implementation using Shaka P
 ## Setup
 
 1. Start the proxy server (required to avoid CORS issues):
+
 ```bash
 deno run --allow-net --allow-read --allow-write ./proxy/deno.ts
 ```
 
 2. Install and run the application:
+
 ```bash
 npm install
 npm run dev
@@ -34,6 +86,7 @@ Trying to get around those issues, I ended up creating a custom Http plugin for 
 - [VideoPlayer](./src/components/VideoPlayer.vue)
 
 ### How it works
+
 The UMP response is streamed and parsed on the fly using a `ReadableStream`. The parser processes different parts of the response as they arrive. A few examples of such parts are:
 
 1. **FORMAT_INITIALIZATION_METADATA**: Contains codec information, total number of segments, etc
@@ -42,21 +95,26 @@ The UMP response is streamed and parsed on the fly using a `ReadableStream`. The
 4. **NEXT_REQUEST_POLICY**: Contains playback cookies for subsequent requests
 
 This approach is very efficient because:
+
 - It processes data in chunks instead of parsing the entire thing at once (which is what I was doing before :p)
 - Extra segments, if any, are ignored
 - Requests are aborted once target segment is found
 
 For SABR specifically, it also does the following:
+
 - Caches init segments to reduce switching delay between qualities
 - Handles stream protection status and error responses
 - Maintains playback cookies for session continuity
 
 ## Acknowledgments
+
 Special thanks to [@absidue](https://github.com/absidue) for helping debug Shaka Player issues and investigating different implementation approaches.
 
 ## License
+
 Distributed under the [MIT](./LICENSE) License.
 
 <p align="right">
 (<a href="#top">back to top</a>)
 </p>
+</details>

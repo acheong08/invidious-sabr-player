@@ -1,6 +1,10 @@
 # Stage 1: Build frontend (Node)
 FROM node:20-alpine AS frontend-build
 WORKDIR /app
+
+# Install protoc for googlevideo dependency
+RUN apk add --no-cache protobuf
+
 COPY package.json package-lock.json ./
 RUN npm install
 COPY . .

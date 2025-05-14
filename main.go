@@ -9,7 +9,7 @@ import (
 
 func main() {
 	// Configure server
-  addr := flag.String("addr", "100.64.0.6:5173", "server address")
+	addr := flag.String("addr", "0.0.0.0:5173", "server address")
 	flag.Parse()
 
 	distDir := "./dist" // Change if your build is elsewhere

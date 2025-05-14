@@ -1,21 +1,20 @@
 # Stage 1: Build frontend (Node)
-FROM node:20-alpine AS frontend-build
+FROM node:23-alpine AS frontend-build
 WORKDIR /app
 
 # Install protoc for googlevideo dependency
-RUN apk add --no-cache protobuf
+RUN apk add protobuf
 
-COPY package.json package-lock.json ./
 COPY . .
 RUN npm install
 RUN npm run build
 
 # Stage 2: Build Go server
-FROM golang:1.22-alpine AS go-build
+FROM golang:1.24-alpine AS go-build
 WORKDIR /app
 COPY --from=frontend-build /app/dist ./dist
 COPY . .
-RUN go build . -o serve-frontend
+RUN go build -o serve-frontend .
 
 # Stage 3: Final image
 FROM denoland/deno:alpine-1.44.3 AS runtime

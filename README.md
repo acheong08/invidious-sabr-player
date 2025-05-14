@@ -1,46 +1,21 @@
 # SABR Player
 
-Sample Caddyfile
+I have packaged this into a single docker image.
 
-```js
-iv.duti.dev {
-  handle /watch {
-    redir /watch "https://iv2.duti.dev/watch/{query.v}"
-  }
-}
+`podman run --rm -p 5173:5173 ghcr.io/acheong08/invidious-sabr-player:latest`
 
-iv2.duti.dev {
- handle /watch {
-  redir /watch /watch/{query.v}
- }
+This serves the player on `/watch/<videoId>`
 
- @watch {
-   path /watch/*
-   path /assets/*
- }
+When necessary, you can use Caddy or any other reverse proxy to redirect to your secondary endpoint.
 
- handle @watch {
-  reverse_proxy 100.64.0.6:5173
- }
- handle /* {
-  redir /* https://iv.duti.dev{uri}
- }
-}
-
-iv3.duti.dev {
- header {
-  Access-Control-Allow-Methods "GET, POST, OPTIONS"
-  Access-Control-Allow-Headers "Origin, Content-Type, Accept, Authorization"
- }
- reverse_proxy 100.64.0.6:8080
+```
+handle /watch {
+    redir /watch https://iv2.duti.dev/watch/{query.v}
 }
 ```
 
-```sh
-deno run --allow-net --allow-read --allow-write ./proxy/deno.ts
-bunx vite build
-go run . -addr 127.0.0.1:5173
-```
+For a real deployment, you can reference my Kubernetes config for invidious:
+<https://github.com/acheong08/kube/tree/master/invidious>
 
 <details>
 

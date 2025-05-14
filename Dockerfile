@@ -26,10 +26,8 @@ COPY --from=go-build /app/dist ./dist
 
 # Copy Deno proxy
 COPY proxy/deno.ts ./deno.ts
-
-# Expose both ports
+# Only expose the Go server which handles proxying
 EXPOSE 5173
-EXPOSE 8080
 
 # Entrypoint: run both servers
 CMD ["sh", "-c", "./serve-frontend & deno run --allow-net --allow-read --allow-write deno.ts"]

@@ -414,9 +414,9 @@ async function setupRequestFilters() {
     if ((url.host.endsWith('.googlevideo.com') || url.href.includes('drm'))) {
       const newUrl = new URL(url.toString());
       newUrl.searchParams.set('__host', url.host);
-      newUrl.host = 'iv3.duti.dev';
-      newUrl.port = '443';
-      newUrl.protocol = 'https';
+      newUrl.host = window.location.host;
+      // newUrl.port = '443';
+      newUrl.protocol = window.location.protocol;
       url = newUrl;
     }
 

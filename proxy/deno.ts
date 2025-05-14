@@ -48,7 +48,7 @@ const handler = async (request: Request): Promise<Response> => {
     return response;
   }
 
-  const url = new URL(request.url, 'https://iv3.duti.dev/');
+  const url = new URL(request.url);
   if (!url.searchParams.has('__host')) {
     return new Response(
       'Request is formatted incorrectly. Please include __host in the query string.',
@@ -78,7 +78,7 @@ const handler = async (request: Request): Promise<Response> => {
     request_headers.set('origin', 'https://www.youtube.com');
     request_headers.set('referer', 'https://www.youtube.com/');
   }
-  
+
   if (request.headers.has('Authorization')) {
     request_headers.set('Authorization', request.headers.get('Authorization')!);
   }

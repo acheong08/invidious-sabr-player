@@ -7,8 +7,8 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
 
   // Transform the url for use with our proxy.
   url.searchParams.set('__host', url.host);
-  url.host = 'iv3.duti.dev';
-  url.protocol = 'https';
+  url.host = window.location.host;
+  url.protocol = window.location.protocol;
 
   if (url.pathname.includes('v1/player')) {
     url.searchParams.set('$fields', 'playerConfig,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,playbackTracking');
@@ -21,7 +21,7 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
       : new Headers();
 
   // Now serialize the headers.
-  url.searchParams.set('__headers', JSON.stringify([ ...headers ]));
+  url.searchParams.set('__headers', JSON.stringify([...headers]));
 
   // Copy over the request.
   const request = new Request(

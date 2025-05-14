@@ -6,8 +6,8 @@ WORKDIR /app
 RUN apk add --no-cache protobuf
 
 COPY package.json package-lock.json ./
-RUN npm install
 COPY . .
+RUN npm install
 RUN npm run build
 
 # Stage 2: Build Go server

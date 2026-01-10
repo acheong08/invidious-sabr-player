@@ -7,7 +7,7 @@ permissions:
 on:
   workflow_dispatch:
   push:
-    branches: ["main"]
+    branches: ["kira"]
 
 jobs:
   build:
@@ -32,8 +32,8 @@ jobs:
         with:
           images: ghcr.io/acheong08/invidious-sabr-player
           tags: |
-            type=sha,format=short,prefix={{date 'YYYY.MM.DD'}}-,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+            type=sha,format=short,prefix={{date 'YYYY.MM.DD'}}-,enable=${{ github.ref == format('refs/heads/{0}', 'kira') }}
+            type=raw,value=kira,enable=${{ github.ref == format('refs/heads/{0}', 'kira') }}
 
       - name: Build and push Docker
         uses: docker/build-push-action@v6

@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  kira:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      # Optional: Override any build-time settings here if needed
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Development services
+  # Uncomment below for local development without Docker
+  # dev-frontend:
+  #   image: oven/bun:1
+  #   working_dir: /app
+  #   volumes:
+  #     - .:/app
+  #   ports:
+  #     - "5173:5173"
+  #   command: bun run dev
+  #
+  # dev-proxy:
+  #   image: denoland/deno:1.47.0
+  #   working_dir: /app
+  #   volumes:
+  #     - ./proxy:/app/proxy
+  #   ports:
+  #     - "8080:8080"
+  #   command: deno run --allow-net --allow-read --allow-write ./proxy/deno.ts

@@ -356,10 +356,10 @@ export function useYoutubePlayer() {
       if ((url.host.endsWith('.googlevideo.com') || url.href.includes('drm')) && !checkExtension()) {
         const newUrl = new URL(url.toString());
         newUrl.searchParams.set('__host', url.host);
-        newUrl.pathname = (settings.basePath || '') + newUrl.pathname;
-        newUrl.host = settings.host;
-        newUrl.port = settings.port;
-        newUrl.protocol = settings.protocol;
+        newUrl.pathname = settings.basePath + newUrl.pathname;
+        newUrl.protocol = window.location.protocol;
+        newUrl.host = window.location.host;
+        // Don't set port - window.location.host already includes it
         url = newUrl;
       }
 

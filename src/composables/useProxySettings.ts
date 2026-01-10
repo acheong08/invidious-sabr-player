@@ -1,18 +1,16 @@
 import { computed, readonly } from 'vue';
 import type { ProxySettings } from '@/utils/helpers';
 
-// Proxy settings are now configured via environment variables at build time
-// and cannot be changed at runtime. The ytc-bridge extension can still
-// override these settings if installed.
+// Proxy settings now use a relative path approach.
+// The proxy is served at /sabr/proxy and uses relative URLs.
+// The ytc-bridge extension can still override these settings if installed.
 const settingsState: ProxySettings = {
-  protocol: import.meta.env.VITE_PROXY_PROTOCOL || 'https',
-  host: import.meta.env.VITE_PROXY_HOST || 'kube.duti.dev',
-  port: import.meta.env.VITE_PROXY_PORT || '443',
-  basePath: import.meta.env.VITE_PROXY_BASE_PATH || ''
+  // Use relative path for the proxy endpoint
+  basePath: '/sabr/proxy'
 };
 
 export function useProxySettings() {
-  const isProxyConfigured = computed(() => !!settingsState.host);
+  const isProxyConfigured = computed(() => !!settingsState.basePath);
 
   return {
     settings: readonly(settingsState),

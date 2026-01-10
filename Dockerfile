@@ -16,12 +16,7 @@ RUN bun install --frozen-lockfile || bun install
 # Copy rest of source code
 COPY . .
 
-# Build frontend with Docker-specific proxy settings
-ENV VITE_PROXY_PROTOCOL=http
-ENV VITE_PROXY_HOST=localhost
-ENV VITE_PROXY_PORT=80
-ENV VITE_PROXY_BASE_PATH=/api
-
+# Build frontend (no proxy env vars needed - uses relative paths)
 RUN bun run build
 
 # Stage 2: Runtime with Deno, Bun, and nginx

@@ -3,10 +3,7 @@ import type { Misc } from 'youtubei.js/web';
 import { useProxySettings } from '@/composables/useProxySettings';
 
 export interface ProxySettings {
-  protocol: 'http' | 'https';
-  host: string;
-  port: string;
-  basePath?: string;
+  basePath: string;
 }
 
 export interface VideoItemData {
@@ -54,10 +51,7 @@ export function checkExtension(): boolean {
 export function getProxyConfig() {
   const { settings } = useProxySettings();
   return {
-    PROXY_PROTOCOL: settings.protocol,
-    PROXY_HOST: settings.host,
-    PROXY_PORT: settings.port,
-    PROXY_BASE_PATH: settings.basePath || ''
+    PROXY_BASE_PATH: settings.basePath
   };
 }
 
@@ -230,7 +224,7 @@ export function createRecoverableError(message: string, info?: Record<string, an
 }
 
 export function configImageHttpProxy() {
-  const { PROXY_HOST, PROXY_PORT, PROXY_PROTOCOL, PROXY_BASE_PATH } = getProxyConfig();
+  const { PROXY_BASE_PATH } = getProxyConfig();
   const rewriteSrc = (img: HTMLImageElement) => {
     if (img.dataset.originalSrc) return;
 
@@ -240,17 +234,19 @@ export function configImageHttpProxy() {
     try {
       const url = new URL(originalSrc);
 
-      if (url.protocol === 'data:' || url.host === `${PROXY_HOST}:${PROXY_PORT}`) {
+      // Skip data URIs and URLs already proxied
+      if (url.protocol === 'data:' || url.pathname.startsWith(PROXY_BASE_PATH)) {
         return;
       }
 
       img.dataset.originalSrc = originalSrc;
 
+      // Use relative URL with proxy path
       url.searchParams.set('__host', url.host);
       url.pathname = PROXY_BASE_PATH + url.pathname;
-      url.host = PROXY_HOST;
-      url.port = PROXY_PORT;
-      url.protocol = PROXY_PROTOCOL;
+      url.protocol = window.location.protocol;
+      url.host = window.location.host;
+      // Don't set port - window.location.host already includes it
       img.src = url.toString();
     } catch { /** no-op */ }
   };
@@ -308,14 +304,14 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
   }
 
   // Fallback to whatever proxy server we may have.
-  const { PROXY_HOST, PROXY_PORT, PROXY_PROTOCOL, PROXY_BASE_PATH } = getProxyConfig();
+  const { PROXY_BASE_PATH } = getProxyConfig();
 
   url.searchParams.set('__headers', JSON.stringify([ ...headers ]));
   url.searchParams.set('__host', url.host);
   url.pathname = PROXY_BASE_PATH + url.pathname;
-  url.host = PROXY_HOST;
-  url.port = PROXY_PORT.toString();
-  url.protocol = PROXY_PROTOCOL;
+  url.protocol = window.location.protocol;
+  url.host = window.location.host;
+  // Don't set port - window.location.host already includes it
 
   const request = new Request(url, input instanceof Request ? input : undefined);
   headers.delete('user-agent');

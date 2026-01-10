@@ -26,6 +26,16 @@ const WIDEVINE_DRM_SYSTEM = 'com.widevine.alpha';
 const INNERTUBE_DRM_LICENSE_URL = 'https://www.youtube.com/youtubei/v1/player/get_drm_license?prettyPrint=false&alt=json';
 const ENABLE_PLAYBACK_TRACKING = true;
 
+/**
+ * Converts a UTF-8 string to base64 encoding.
+ * This is necessary because btoa() only supports Latin1 (ISO-8859-1) characters.
+ * @param str - The UTF-8 string to encode
+ * @returns Base64 encoded string
+ */
+function utf8ToBase64(str: string): string {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
 const DEFAULT_ABR_CONFIG = {
   enabled: true,
   // NOTE: This is reset when playback starts (limiting the resolution initially improves load times).
@@ -545,13 +555,19 @@ export function useYoutubePlayer() {
       } else if (isPostLiveDVR) {
         manifestUri = videoInfo.streaming_data.hls_manifest_url || `${videoInfo.streaming_data.dash_manifest_url}/mpd_version/7`;
       } else {
-        manifestUri = `data:application/dash+xml;base64,${btoa(await videoInfo.toDash({
-          manifest_options: {
-            is_sabr: true,
-            captions_format: 'vtt',
-            include_thumbnails: false
-          }
-        }))}`;
+        try {
+          const dashManifest = await videoInfo.toDash({
+            manifest_options: {
+              is_sabr: true,
+              captions_format: 'vtt',
+              include_thumbnails: false
+            }
+          });
+          manifestUri = `data:application/dash+xml;base64,${utf8ToBase64(dashManifest)}`;
+        } catch (encodingError) {
+          console.error('[Player]', 'Failed to encode DASH manifest:', encodingError);
+          throw new Error('Failed to encode video manifest. The video may contain unsupported characters.');
+        }
       }
     }
 

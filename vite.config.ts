@@ -6,6 +6,7 @@ import { compression } from 'vite-plugin-compression2';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/sabr/',
   plugins: [
     vue(),
     compression({

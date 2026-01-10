@@ -1,39 +1,40 @@
 {
-  "name": "kira",
-  "private": true,
-  "version": "0.0.1",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc && vite build",
-    "preview": "vite preview",
-    "lint": "npx eslint ./src/**/*.ts",
-    "lint:fix": "npx eslint --fix ./src/**/*.ts",
-    "patch:shaka": "node ./scripts/patchShaka.mjs",
-    "postinstall": "npm run patch:shaka"
-  },
-  "dependencies": {
-    "bgutils-js": "^3.1.3",
-    "googlevideo": "^4.0.4",
-    "native-file-system-adapter": "^3.0.1",
-    "shaka-player": "^4.16.4",
-    "vue": "^3.3.4",
-    "vue-router": "^4.5.0",
-    "youtubei.js": "^16.0.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.9.0",
-    "@stylistic/eslint-plugin": "^2.6.4",
-    "@types/node": "^24.0.12",
-    "@vitejs/plugin-legacy": "^6.1.1",
-    "@vitejs/plugin-vue": "^5.2.3",
-    "eslint": "^9.9.0",
-    "globals": "^15.9.0",
-    "patch-package": "^8.0.1",
-    "typescript": "^5.0.2",
-    "typescript-eslint": "^8.27.0",
-    "vite": "^6.3.6",
-    "vite-plugin-compression2": "^2.2.0",
-    "vue-tsc": "^2.1.10"
-  }
+	"name": "kira",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vue-tsc && vite build",
+		"preview": "vite preview",
+		"lint": "npx eslint ./src/**/*.ts",
+		"lint:fix": "npx eslint --fix ./src/**/*.ts",
+		"patch:shaka": "node ./scripts/patchShaka.mjs",
+		"postinstall": "npm run patch:shaka",
+		"format": "bun run lint:fix"
+	},
+	"dependencies": {
+		"bgutils-js": "^3.1.3",
+		"googlevideo": "^4.0.4",
+		"native-file-system-adapter": "^3.0.1",
+		"shaka-player": "^4.16.4",
+		"vue": "^3.3.4",
+		"vue-router": "^4.5.0",
+		"youtubei.js": "^16.0.0"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.9.0",
+		"@stylistic/eslint-plugin": "^2.6.4",
+		"@types/node": "^24.0.12",
+		"@vitejs/plugin-legacy": "^6.1.1",
+		"@vitejs/plugin-vue": "^5.2.3",
+		"eslint": "^9.9.0",
+		"globals": "^15.9.0",
+		"patch-package": "^8.0.1",
+		"typescript": "^5.0.2",
+		"typescript-eslint": "^8.27.0",
+		"vite": "^6.3.6",
+		"vite-plugin-compression2": "^2.2.0",
+		"vue-tsc": "^2.1.10"
+	}
 }

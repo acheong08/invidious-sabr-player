@@ -244,29 +244,6 @@ body {
   margin-bottom: 12px;
 }
 
-.settings-button {
-  color: #aaa;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s ease, background-color 0.2s ease;
-  margin-left: 8px;
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.settings-button:hover {
-  color: #fff;
-  background-color: #333;
-}
-
 @media (max-width: 1024px) {
   ::-webkit-scrollbar {
     display: none;
@@ -322,14 +299,6 @@ body {
   .empty-results {
     width: calc(100% - 50px);
   }
-
-  .settings-button {
-    transform: none;
-    padding: 0;
-    margin: 0;
-    border-radius: 50%;
-    position: static;
-  }
 }
 </style>
 
@@ -355,9 +324,7 @@ body {
         <div v-if="searchQuery && !isLoading" class="clear-search" @click="clearSearch">×</div>
         <div v-if="isLoading" class="loader"></div>
       </div>
-      <button class="settings-button" @click="showSettingsDialog = true" aria-label="Open settings">
-        <SettingsIcon/>
-      </button>
+
       <div v-if="searchResults.length" class="search-results">
         <div
           v-for="(result, index) in searchResults"
@@ -393,11 +360,6 @@ body {
       <router-view/>
     </div>
     <ToastNotification/>
-    <SettingsDialog
-      v-if="showSettingsDialog"
-      @close="showSettingsDialog = false"
-      @save="saveSettings"
-    />
   </div>
 </template>
 
@@ -406,12 +368,10 @@ import { onMounted, provide, ref, shallowRef } from 'vue';
 import { useRouter } from 'vue-router';
 
 import ToastNotification from '@/components/ToastNotification.vue';
-import SettingsDialog from '@/components/SettingsDialog.vue';
 
 import HomeIcon from '@/components/icons/HomeIcon.vue';
 import SadFaceIcon from '@/components/icons/SadFaceIcon.vue';
 import SearchIcon from '@/components/icons/SearchIcon.vue';
-import SettingsIcon from '@/components/icons/SettingsIcon.vue';
 
 import { useDebounce } from '@/composables/useDebounce';
 import { useProxySettings } from '@/composables/useProxySettings';
@@ -431,12 +391,12 @@ import {
   handleImageError,
   isConfigValid,
   isFirstTime,
-  loadCachedClientConfig, ProxySettings
+  loadCachedClientConfig
 } from './utils/helpers';
 
 const router = useRouter();
 const { addToast } = useToastStore();
-const { isProxyConfigured, setSettings } = useProxySettings();
+const { isProxyConfigured } = useProxySettings();
 
 let innertubePromise: Promise<Innertube | undefined> | undefined;
 let clientConfigPromise: Promise<OnesieHotConfig | undefined> | undefined;
@@ -455,7 +415,6 @@ const searchResults = ref<{
 
 const isLoading = ref(false);
 const highlightedIndex = ref(-1);
-const showSettingsDialog = ref(false);
 
 Platform.shim.eval = async (data: Types.BuildScriptResult, env: Record<string, Types.VMPrimative>) => {
   const properties = [];
@@ -651,11 +610,6 @@ function selectVideo(id: string) {
   router.push(`/watch/${id}`);
 }
 
-const saveSettings = (newSettings: ProxySettings) => {
-  setSettings(newSettings);
-  showSettingsDialog.value = false;
-};
-
 provide('innertube', getInnertube);
 provide('onesieHotConfig', getClientConfig);
 
@@ -664,10 +618,6 @@ clientConfigPromise = fetchOnesieHotConfig();
 
 onMounted(async () => {
   const isExtensionInstalled = checkExtension();
-
-  if (!isProxyConfigured.value && !isExtensionInstalled) {
-    showSettingsDialog.value = true;
-  }
 
   if (!isExtensionInstalled && isProxyConfigured.value) {
     configImageHttpProxy();

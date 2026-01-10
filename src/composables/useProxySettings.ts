@@ -1,46 +1,20 @@
-import { reactive, computed, readonly } from 'vue';
+import { computed, readonly } from 'vue';
 import type { ProxySettings } from '@/utils/helpers';
 
-const PROXY_SETTINGS_KEY = 'proxy_settings';
-
-const settingsState = reactive<ProxySettings>({
-  protocol: 'http',
-  host: '',
-  port: ''
-});
-
-function loadSettings() {
-  try {
-    const savedSettings = localStorage.getItem(PROXY_SETTINGS_KEY);
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings);
-      Object.assign(settingsState, parsed);
-    }
-  } catch (e) {
-    console.error('Failed to load proxy settings', e);
-  }
-}
-
-function saveSettings() {
-  localStorage.setItem(PROXY_SETTINGS_KEY, JSON.stringify(settingsState));
-}
-
-loadSettings();
+// Proxy settings are now configured via environment variables at build time
+// and cannot be changed at runtime. The ytc-bridge extension can still
+// override these settings if installed.
+const settingsState: ProxySettings = {
+  protocol: import.meta.env.VITE_PROXY_PROTOCOL || 'https',
+  host: import.meta.env.VITE_PROXY_HOST || 'kube.duti.dev',
+  port: import.meta.env.VITE_PROXY_PORT || '443'
+};
 
 export function useProxySettings() {
   const isProxyConfigured = computed(() => !!settingsState.host);
 
-  const setSettings = (newSettings: ProxySettings) => {
-    settingsState.host = newSettings.host;
-    settingsState.port = newSettings.port;
-    settingsState.protocol = newSettings.protocol;
-    saveSettings();
-    window.location.reload();
-  };
-
   return {
     settings: readonly(settingsState),
-    isProxyConfigured,
-    setSettings
+    isProxyConfigured
   };
 }

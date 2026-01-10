@@ -6,6 +6,7 @@ export interface ProxySettings {
   protocol: 'http' | 'https';
   host: string;
   port: string;
+  basePath?: string;
 }
 
 export interface VideoItemData {
@@ -55,7 +56,8 @@ export function getProxyConfig() {
   return {
     PROXY_PROTOCOL: settings.protocol,
     PROXY_HOST: settings.host,
-    PROXY_PORT: settings.port
+    PROXY_PORT: settings.port,
+    PROXY_BASE_PATH: settings.basePath || ''
   };
 }
 
@@ -228,7 +230,7 @@ export function createRecoverableError(message: string, info?: Record<string, an
 }
 
 export function configImageHttpProxy() {
-  const { PROXY_HOST, PROXY_PORT, PROXY_PROTOCOL } = getProxyConfig();
+  const { PROXY_HOST, PROXY_PORT, PROXY_PROTOCOL, PROXY_BASE_PATH } = getProxyConfig();
   const rewriteSrc = (img: HTMLImageElement) => {
     if (img.dataset.originalSrc) return;
 
@@ -245,6 +247,7 @@ export function configImageHttpProxy() {
       img.dataset.originalSrc = originalSrc;
 
       url.searchParams.set('__host', url.host);
+      url.pathname = PROXY_BASE_PATH + url.pathname;
       url.host = PROXY_HOST;
       url.port = PROXY_PORT;
       url.protocol = PROXY_PROTOCOL;
@@ -305,10 +308,11 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
   }
 
   // Fallback to whatever proxy server we may have.
-  const { PROXY_HOST, PROXY_PORT, PROXY_PROTOCOL } = getProxyConfig();
+  const { PROXY_HOST, PROXY_PORT, PROXY_PROTOCOL, PROXY_BASE_PATH } = getProxyConfig();
 
   url.searchParams.set('__headers', JSON.stringify([ ...headers ]));
   url.searchParams.set('__host', url.host);
+  url.pathname = PROXY_BASE_PATH + url.pathname;
   url.host = PROXY_HOST;
   url.port = PROXY_PORT.toString();
   url.protocol = PROXY_PROTOCOL;

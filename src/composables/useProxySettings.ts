@@ -7,7 +7,8 @@ import type { ProxySettings } from '@/utils/helpers';
 const settingsState: ProxySettings = {
   protocol: import.meta.env.VITE_PROXY_PROTOCOL || 'https',
   host: import.meta.env.VITE_PROXY_HOST || 'kube.duti.dev',
-  port: import.meta.env.VITE_PROXY_PORT || '443'
+  port: import.meta.env.VITE_PROXY_PORT || '443',
+  basePath: import.meta.env.VITE_PROXY_BASE_PATH || ''
 };
 
 export function useProxySettings() {

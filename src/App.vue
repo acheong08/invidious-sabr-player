@@ -65,6 +65,19 @@ body {
   color: #fff;
 }
 
+.subscriptions-button {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #aaa;
+  transition: color 0.2s ease;
+}
+
+.subscriptions-button:hover {
+  color: #fff;
+}
+
 .search-input-wrapper {
   position: relative;
   display: flex;
@@ -281,8 +294,13 @@ body {
     transform: none;
   }
 
+  .subscriptions-button {
+    position: static;
+    transform: none;
+  }
+
   .search-input-wrapper {
-    max-width: calc(100% - 84px);
+    max-width: calc(100% - 108px);
   }
 
   .empty-results,
@@ -305,9 +323,9 @@ body {
 <template>
   <div class="app">
     <div class="search-container">
-      <router-link to="/" class="home-button" aria-label="Go to homepage">
+      <a href="/" class="home-button" aria-label="Go to homepage">
         <HomeIcon/>
-      </router-link>
+      </a>
       <div class="search-input-wrapper">
         <div class="search-icon">
           <SearchIcon/>
@@ -315,46 +333,13 @@ body {
         <input
           v-model="searchQuery"
           placeholder="Search videos..."
-          @input="handleSearch"
-          @keydown.down.prevent="navigateResults('down')"
-          @keydown.up.prevent="navigateResults('up')"
-          @keydown.enter="selectHighlightedVideo"
+          @keydown.enter="handleSearchSubmit"
           class="search-input"
         />
-        <div v-if="searchQuery && !isLoading" class="clear-search" @click="clearSearch">×</div>
-        <div v-if="isLoading" class="loader"></div>
       </div>
-
-      <div v-if="searchResults.length" class="search-results">
-        <div
-          v-for="(result, index) in searchResults"
-          :key="result.id"
-          class="search-result-item"
-          :class="{ 'highlighted': index === highlightedIndex }"
-          @click="selectVideo(result.id)"
-          @mouseenter="highlightedIndex = index"
-        >
-          <div class="thumbnail-container">
-            <img
-              :src="result.thumbnail"
-              class="thumbnail"
-              :alt="result.title"
-              loading="lazy"
-              @error="handleImageError($event.target as any)"
-            />
-            <div class="duration">{{ result.duration || '??:??' }}</div>
-          </div>
-          <div class="video-info">
-            <div class="title">{{ result.title }}</div>
-            <div class="channel">{{ result.channel }}</div>
-            <div v-if="result.views" class="meta">{{ result.views }}</div>
-          </div>
-        </div>
-      </div>
-      <div v-else-if="searchQuery && !isLoading" class="empty-results">
-        <SadFaceIcon/>
-        <p>No videos found. Try a different search term.</p>
-      </div>
+      <a href="/feed/subscriptions" class="subscriptions-button" aria-label="Go to subscriptions">
+        <SubscriptionsIcon/>
+      </a>
     </div>
     <div class="main-content">
       <router-view/>
@@ -370,8 +355,8 @@ import { useRouter } from 'vue-router';
 import ToastNotification from '@/components/ToastNotification.vue';
 
 import HomeIcon from '@/components/icons/HomeIcon.vue';
-import SadFaceIcon from '@/components/icons/SadFaceIcon.vue';
 import SearchIcon from '@/components/icons/SearchIcon.vue';
+import SubscriptionsIcon from '@/components/icons/SubscriptionsIcon.vue';
 
 import { useDebounce } from '@/composables/useDebounce';
 import { useProxySettings } from '@/composables/useProxySettings';
@@ -608,6 +593,12 @@ function selectHighlightedVideo() {
 function selectVideo(id: string) {
   clearSearch();
   router.push(`/watch/${id}`);
+}
+
+function handleSearchSubmit() {
+  if (searchQuery.value.trim()) {
+    window.location.href = `/search?q=${encodeURIComponent(searchQuery.value.trim())}`;
+  }
 }
 
 provide('innertube', getInnertube);

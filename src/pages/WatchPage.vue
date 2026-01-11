@@ -224,6 +224,39 @@
   padding: 20px;
   color: #aaa;
 }
+
+/* Dark mode overrides for comments */
+.comments-section :deep(*) {
+  color: #fff !important;
+}
+
+.comments-section :deep(a) {
+  color: rgb(62, 166, 255) !important;
+}
+
+.comments-section :deep(h3),
+.comments-section :deep(p),
+.comments-section :deep(b),
+.comments-section :deep(div) {
+  background: transparent !important;
+}
+
+.comments-section :deep(.pure-g) {
+  border-bottom: 1px solid #5e5e5e7c;
+  padding: 12px 0;
+}
+
+.comments-section :deep(.channel-profile) {
+  width: 50px !important;
+  flex: 0 0 50px !important;
+}
+
+.comments-section :deep(.channel-profile img) {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50%;
+  margin: 0 !important;
+}
 </style>
 
 <template>
@@ -266,7 +299,7 @@
         </div>
         <div class="comments-section" v-if="commentsHtml || isLoadingComments">
           <div v-if="isLoadingComments" class="comments-loading">Loading comments...</div>
-          <div v-else v-html="commentsHtml" />
+          <div v-else v-html="commentsHtml" ref="commentsContainer" />
         </div>
       </div>
     </div>
@@ -284,7 +317,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 
 import VideoPlayer from '@/components/VideoPlayer.vue';
@@ -318,12 +351,14 @@ const {
 const {
   commentsHtml,
   isLoading: isLoadingComments,
-  fetchComments
+  fetchComments,
+  setupEventListeners
 } = useComments();
 
 const videoId = ref(route.params.id.toString());
 const relatedVideos = ref<VideoItemData[]>([]);
 const videoDetails = ref<VideoDetails | undefined>();
+const commentsContainer = ref<HTMLElement | null>(null);
 
 async function fetchVideoInfo() {
   const innertube = await getInnertube();
@@ -396,6 +431,15 @@ watch(() => route.params.id, (newId) => {
   document.title = 'Loading... - Kira';
   fetchVideoInfo();
   fetchComments(videoId.value);
+});
+
+// Setup comment event listeners after HTML is rendered
+watch(commentsHtml, () => {
+  nextTick(() => {
+    if (commentsContainer.value) {
+      setupEventListeners(commentsContainer.value);
+    }
+  });
 });
 
 onMounted(() => {

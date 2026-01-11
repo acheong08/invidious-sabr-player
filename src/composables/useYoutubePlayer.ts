@@ -36,12 +36,36 @@ function utf8ToBase64(str: string): string {
   return btoa(unescape(encodeURIComponent(str)));
 }
 
+/**
+ * Determines the maximum quality height based on display resolution.
+ * - For displays ≤1080p: returns native resolution
+ * - For displays >1080p: returns 1080p as default cap
+ * Users can still manually override this via the quality selector.
+ * @returns Maximum height in pixels
+ */
+function getDefaultMaxQuality(): number {
+  const displayHeight = window.screen.height;
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const actualHeight = displayHeight * devicePixelRatio;
+  
+  // If display is 1080p or lower, cap at display resolution
+  if (actualHeight <= 1080) {
+    return actualHeight;
+  }
+  
+  // For higher resolution displays, default to 1080p
+  return 1080;
+}
+
+const INITIAL_LOAD_MAX_HEIGHT = 1080; // Initial load quality
+
 const DEFAULT_ABR_CONFIG = {
   enabled: true,
   // NOTE: This is reset when playback starts (limiting the resolution initially improves load times).
-  restrictions: { maxHeight: 480 },
+  restrictions: { maxHeight: INITIAL_LOAD_MAX_HEIGHT },
   switchInterval: 4, // Switch as soon as the above is reset.
-  useNetworkInformation: false // Still unreliable.
+  useNetworkInformation: false, // Still unreliable.
+  defaultBandwidthEstimate: 10_000_000 // 10 Mbps - ensures 1080p is selected initially.
 };
 
 type PlayerState = 'loading' | 'ready' | 'error' | 'buffering';
@@ -254,7 +278,11 @@ export function useYoutubePlayer() {
 
     videoEl.volume = getSavedVolume();
     videoEl.addEventListener('volumechange', () => saveVolume(videoEl.volume));
-    videoEl.addEventListener('playing', () => player.configure('abr.restrictions.maxHeight', Infinity));
+    videoEl.addEventListener('playing', () => {
+      const maxQuality = getDefaultMaxQuality();
+      console.info('[Player]', `Setting max quality to ${maxQuality}p (display resolution: ${window.screen.height}p, DPR: ${window.devicePixelRatio || 1})`);
+      player.configure('abr.restrictions.maxHeight', maxQuality);
+    });
     videoEl.addEventListener('pause', () => {
       if (currentVideoId) {
         savePlaybackPosition(currentVideoId, videoEl.currentTime);

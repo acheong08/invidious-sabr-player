@@ -314,13 +314,15 @@ export function useYoutubePlayer() {
     });
 
     const volumeContainer = shakaContainer.getElementsByClassName('shaka-volume-bar-container');
-    volumeContainer[0].addEventListener('mousewheel', (event) => {
-      event.preventDefault();
-      const delta = Math.sign((event as any).deltaY);
-      const newVolume = Math.max(0, Math.min(1, videoEl.volume - delta * 0.05));
-      videoEl.volume = newVolume;
-      saveVolume(newVolume);
-    });
+    if (volumeContainer[0]) {
+      volumeContainer[0].addEventListener('mousewheel', (event) => {
+        event.preventDefault();
+        const delta = Math.sign((event as any).deltaY);
+        const newVolume = Math.max(0, Math.min(1, videoEl.volume - delta * 0.05));
+        videoEl.volume = newVolume;
+        saveVolume(newVolume);
+      });
+    }
 
     playerComponents.value.player = player;
     playerComponents.value.ui = ui;

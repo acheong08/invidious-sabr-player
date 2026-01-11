@@ -350,7 +350,6 @@ body {
 
 <script lang="ts" setup>
 import { onMounted, provide, ref, shallowRef } from 'vue';
-import { useRouter } from 'vue-router';
 
 import ToastNotification from '@/components/ToastNotification.vue';
 
@@ -358,11 +357,10 @@ import HomeIcon from '@/components/icons/HomeIcon.vue';
 import SearchIcon from '@/components/icons/SearchIcon.vue';
 import SubscriptionsIcon from '@/components/icons/SubscriptionsIcon.vue';
 
-import { useDebounce } from '@/composables/useDebounce';
 import { useProxySettings } from '@/composables/useProxySettings';
 import { useToastStore } from '@/stores/toastStore';
 
-import { Innertube, Platform, UniversalCache, YTNodes, Types } from 'youtubei.js/web';
+import { Innertube, Platform, UniversalCache, Types } from 'youtubei.js/web';
 import { base64ToU8 } from 'googlevideo/utils';
 import { botguardService } from '@/services/botguard';
 
@@ -373,13 +371,11 @@ import {
   checkExtension,
   configImageHttpProxy,
   fetchFunction,
-  handleImageError,
   isConfigValid,
   isFirstTime,
   loadCachedClientConfig
 } from './utils/helpers';
 
-const router = useRouter();
 const { addToast } = useToastStore();
 const { isProxyConfigured } = useProxySettings();
 
@@ -389,18 +385,6 @@ const innertubeInstance = shallowRef<Innertube | undefined>(undefined);
 const clientConfigObject = shallowRef<OnesieHotConfig | undefined>(undefined);
 
 const searchQuery = ref('');
-const searchResults = ref<{
-  id: string;
-  title: string;
-  channel: string;
-  thumbnail: string;
-  duration?: string | null;
-  views?: string | null;
-}[]>([]);
-
-const isLoading = ref(false);
-const highlightedIndex = ref(-1);
-
 Platform.shim.eval = async (data: Types.BuildScriptResult, env: Record<string, Types.VMPrimative>) => {
   const properties = [];
 
@@ -520,79 +504,6 @@ async function getClientConfig() {
 
   if (!clientConfigPromise) clientConfigPromise = fetchOnesieHotConfig();
   return clientConfigPromise;
-}
-
-const performSearch = async () => {
-  if (!searchQuery.value.length) {
-    searchResults.value = [];
-    return;
-  }
-
-  isLoading.value = true;
-
-  try {
-    const innertube = await getInnertube();
-    if (!innertube) return;
-
-    const search = await innertube.actions.execute('/search', { query: searchQuery.value, parse: true });
-
-    if (!search.contents_memo) {
-      searchResults.value = [];
-      return;
-    }
-
-    const results = search.contents_memo?.getType(YTNodes.Video, YTNodes.CompactVideo);
-
-    if (results) {
-      searchResults.value = results.map((result) => ({
-        id: result.video_id,
-        title: result.title.toString(),
-        channel: result.author?.name || 'Unknown',
-        thumbnail: result.thumbnails[0].url,
-        duration: result.duration?.text || null,
-        views: result.view_count?.text || null
-      }));
-      highlightedIndex.value = searchResults.value.length > 0 ? 0 : -1;
-    } else {
-      searchResults.value = [];
-    }
-  } catch (error) {
-    console.error('[App]', 'Search failed', error);
-    searchResults.value = [];
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-const handleSearch = useDebounce(performSearch, 300);
-
-function clearSearch() {
-  searchQuery.value = '';
-  searchResults.value = [];
-  highlightedIndex.value = -1;
-}
-
-function navigateResults(direction: 'up' | 'down') {
-  if (searchResults.value.length === 0) return;
-
-  if (direction === 'down') {
-    highlightedIndex.value = (highlightedIndex.value + 1) % searchResults.value.length;
-  } else {
-    highlightedIndex.value = highlightedIndex.value <= 0
-      ? searchResults.value.length - 1
-      : highlightedIndex.value - 1;
-  }
-}
-
-function selectHighlightedVideo() {
-  if (highlightedIndex.value >= 0 && searchResults.value[highlightedIndex.value]) {
-    selectVideo(searchResults.value[highlightedIndex.value].id);
-  }
-}
-
-function selectVideo(id: string) {
-  clearSearch();
-  router.push(`/watch/${id}`);
 }
 
 function handleSearchSubmit() {

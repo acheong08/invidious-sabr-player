@@ -20,6 +20,7 @@ export interface VideoDetails {
   title: string;
   channelName: string;
   channelAvatar: string;
+  channelId: string;
   subscribers: string;
   views?: string;
   publishDate?: string;
@@ -57,7 +58,9 @@ export function getProxyConfig() {
 
 export function isFirstTime() {
   try {
-    return indexedDB.databases().then((dbs) => !dbs.some((db) => db.name === 'youtubei.js'));
+    return indexedDB
+      .databases()
+      .then((dbs) => !dbs.some((db) => db.name === 'youtubei.js'));
   } catch (error) {
     console.error('[App]', 'Failed to check IndexedDB databases', error);
     return true;
@@ -65,12 +68,15 @@ export function isFirstTime() {
 }
 
 export function handleImageError(img: HTMLImageElement) {
-  img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9" fill="%23333"%3E%3Crect width="16" height="9" fill="%23333"/%3E%3Cpath d="M8 6a1 1 0 100-2 1 1 0 000 2z" fill="%23aaa"/%3E%3C/svg%3E';
+  img.src =
+    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9" fill="%23333"%3E%3Crect width="16" height="9" fill="%23333"/%3E%3Cpath d="M8 6a1 1 0 100-2 1 1 0 000 2z" fill="%23aaa"/%3E%3C/svg%3E';
 }
 
-export async function encryptRequest(clientKey: Uint8Array, data: Uint8Array): Promise<EncryptedRequest> {
-  if (clientKey.length !== 32)
-    throw new Error('Invalid client key length');
+export async function encryptRequest(
+  clientKey: Uint8Array,
+  data: Uint8Array
+): Promise<EncryptedRequest> {
+  if (clientKey.length !== 32) throw new Error('Invalid client key length');
 
   const aesKeyData = clientKey.slice(0, 16);
   const hmacKeyData = clientKey.slice(16, 32);
@@ -85,11 +91,13 @@ export async function encryptRequest(clientKey: Uint8Array, data: Uint8Array): P
     [ 'encrypt' ]
   );
 
-  const encrypted = new Uint8Array(await window.crypto.subtle.encrypt(
-    { name: 'AES-CTR', counter: iv, length: 128 },
-    aesKey,
-    data as any
-  ));
+  const encrypted = new Uint8Array(
+    await window.crypto.subtle.encrypt(
+      { name: 'AES-CTR', counter: iv, length: 128 },
+      aesKey,
+      data as any
+    )
+  );
 
   const hmacKey = await window.crypto.subtle.importKey(
     'raw',
@@ -99,11 +107,13 @@ export async function encryptRequest(clientKey: Uint8Array, data: Uint8Array): P
     [ 'sign' ]
   );
 
-  const hmac = new Uint8Array(await window.crypto.subtle.sign(
-    'HMAC',
-    hmacKey,
-    new Uint8Array([ ...encrypted, ...iv ])
-  ));
+  const hmac = new Uint8Array(
+    await window.crypto.subtle.sign(
+      'HMAC',
+      hmacKey,
+      new Uint8Array([ ...encrypted, ...iv ])
+    )
+  );
 
   return { encrypted, hmac, iv };
 }
@@ -114,7 +124,7 @@ export function isConfigValid(config: OnesieHotConfig): boolean {
   }
 
   const currentTime = Date.now();
-  const expirationTime = config.timestamp + (config.keyExpiresInSeconds * 1000);
+  const expirationTime = config.timestamp + config.keyExpiresInSeconds * 1000;
   return currentTime < expirationTime;
 }
 
@@ -133,8 +143,12 @@ export function loadCachedClientConfig(): OnesieHotConfig | null {
     return {
       ...parsed,
       clientKeyData: new Uint8Array(Object.values(parsed.clientKeyData)),
-      encryptedClientKey: new Uint8Array(Object.values(parsed.encryptedClientKey)),
-      onesieUstreamerConfig: new Uint8Array(Object.values(parsed.onesieUstreamerConfig))
+      encryptedClientKey: new Uint8Array(
+        Object.values(parsed.encryptedClientKey)
+      ),
+      onesieUstreamerConfig: new Uint8Array(
+        Object.values(parsed.onesieUstreamerConfig)
+      )
     };
   } catch (error) {
     console.error('[App]', 'Failed to load cached client config', error);
@@ -160,7 +174,9 @@ export function escape(text: string) {
     .replace(/'/g, '&#039;');
 }
 
-export function headersToGenericObject(headers: Headers): Record<string, string> {
+export function headersToGenericObject(
+  headers: Headers
+): Record<string, string> {
   const headersObj: Record<string, string> = {};
   headers.forEach((value, key) => {
     // Since Edge incorrectly returns the header with a leading new line
@@ -194,11 +210,14 @@ export function makeResponse(
   let responseText: string | null = null;
   try {
     responseText = shaka.util.StringUtils.fromBytesAutoDetect(data);
-  } catch { /* no-op */ }
+  } catch {
+    /* no-op */
+  }
 
-  const severity = status === 401 || status === 403
-    ? shaka.util.Error.Severity.CRITICAL
-    : shaka.util.Error.Severity.RECOVERABLE;
+  const severity =
+    status === 401 || status === 403
+      ? shaka.util.Error.Severity.CRITICAL
+      : shaka.util.Error.Severity.RECOVERABLE;
 
   throw new shaka.util.Error(
     severity,
@@ -213,7 +232,10 @@ export function makeResponse(
   );
 }
 
-export function createRecoverableError(message: string, info?: Record<string, any>) {
+export function createRecoverableError(
+  message: string,
+  info?: Record<string, any>
+) {
   return new shaka.util.Error(
     shaka.util.Error.Severity.RECOVERABLE,
     shaka.util.Error.Category.NETWORK,
@@ -235,7 +257,10 @@ export function configImageHttpProxy() {
       const url = new URL(originalSrc);
 
       // Skip data URIs and URLs already proxied
-      if (url.protocol === 'data:' || url.pathname.startsWith(PROXY_BASE_PATH)) {
+      if (
+        url.protocol === 'data:' ||
+        url.pathname.startsWith(PROXY_BASE_PATH)
+      ) {
         return;
       }
 
@@ -248,7 +273,9 @@ export function configImageHttpProxy() {
       url.host = window.location.host;
       // Don't set port - window.location.host already includes it
       img.src = url.toString();
-    } catch { /** no-op */ }
+    } catch {
+      /** no-op */
+    }
   };
 
   const observer = new MutationObserver((mutations) => {
@@ -264,7 +291,10 @@ export function configImageHttpProxy() {
             }
           }
         });
-      } else if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
+      } else if (
+        mutation.type === 'attributes' &&
+        mutation.attributeName === 'src'
+      ) {
         rewriteSrc(mutation.target as HTMLImageElement);
       }
     }
@@ -284,13 +314,24 @@ export function getInjectedProxyFunction() {
   return (window as any).proxyFetch;
 }
 
-export async function fetchFunction(input: string | Request | URL, init?: RequestInit): Promise<Response> {
-  const url = input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
-  const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+export async function fetchFunction(
+  input: string | Request | URL,
+  init?: RequestInit
+): Promise<Response> {
+  const url =
+    input instanceof URL
+      ? input
+      : new URL(typeof input === 'string' ? input : input.url);
+  const headers = new Headers(
+    init?.headers ?? (input instanceof Request ? input.headers : undefined)
+  );
   const requestInit = { ...init, headers };
 
   if (url.pathname.includes('v1/player')) {
-    url.searchParams.set('$fields', 'playerConfig,storyboards,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,videoDetails.thumbnail');
+    url.searchParams.set(
+      '$fields',
+      'playerConfig,storyboards,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,videoDetails.thumbnail'
+    );
   }
 
   const proxyFetch = getInjectedProxyFunction();
@@ -313,7 +354,10 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
   url.host = window.location.host;
   // Don't set port - window.location.host already includes it
 
-  const request = new Request(url, input instanceof Request ? input : undefined);
+  const request = new Request(
+    url,
+    input instanceof Request ? input : undefined
+  );
   headers.delete('user-agent');
 
   return fetch(request, requestInit);

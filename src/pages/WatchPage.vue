@@ -222,13 +222,15 @@
       <div class="video-info" v-if="videoDetails">
         <h1 class="video-title" :title="videoDetails.title">{{ videoDetails.title }}</h1>
         <div class="metadata-row">
-          <div class="channel-info">
-            <img :src="videoDetails.channelAvatar" class="channel-avatar" alt="Channel avatar">
-            <div class="channel-details">
-              <h3 class="channel-name">{{ videoDetails.channelName }}</h3>
-              <span class="subscriber-count">{{ videoDetails.subscribers }}</span>
+          <a :href="`/channel/${ videoDetails.channelId }`">
+            <div class="channel-info">
+              <img :src="videoDetails.channelAvatar" class="channel-avatar" alt="Channel avatar">
+              <div class="channel-details">
+                <h3 class="channel-name">{{ videoDetails.channelName }}</h3>
+                <span class="subscriber-count">{{ videoDetails.subscribers }}</span>
+              </div>
             </div>
-          </div>
+          </a>
           <div class="video-stats">
             <span class="views" v-if="videoDetails.views">{{ videoDetails.views }}</span>
             <span class="date" v-if="videoDetails.publishDate">{{ videoDetails.publishDate }}</span>
@@ -322,6 +324,7 @@ async function fetchVideoInfo() {
       title: videoPrimaryInfo?.title.toString() || '',
       channelName: videoSecondaryInfo?.owner?.author.name || '',
       channelAvatar: videoSecondaryInfo?.owner?.author.best_thumbnail?.url || '',
+      channelId: videoSecondaryInfo?.owner?.author.id || '',
       subscribers: videoSecondaryInfo?.owner?.subscriber_count.toString() || '0 subscribers',
       views: videoPrimaryInfo?.view_count?.short_view_count.isEmpty() ? videoPrimaryInfo.view_count.view_count.toString() : videoPrimaryInfo?.view_count?.short_view_count.toString(),
       publishDate: videoPrimaryInfo?.relative_date.isEmpty() ? undefined : videoPrimaryInfo?.relative_date.toString(),

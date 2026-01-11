@@ -55,7 +55,7 @@
 </style>
 
 <template>
-  <router-link class="related-video-item" :to="`/watch/${data.videoId}`">
+  <router-link class="related-video-item" :to="`/watch?v=${data.videoId}`">
     <div class="thumbnail-container">
       <img 
         :src="data.thumbnail"

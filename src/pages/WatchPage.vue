@@ -355,7 +355,13 @@ const {
   setupEventListeners
 } = useComments();
 
-const videoId = ref(route.params.id.toString());
+// Support both /watch/:id and /watch?v=:id
+const getVideoId = () => {
+  if (route.params.id) return route.params.id.toString();
+  if (route.query.v) return route.query.v.toString();
+  return '';
+};
+const videoId = ref(getVideoId());
 const relatedVideos = ref<VideoItemData[]>([]);
 const videoDetails = ref<VideoDetails | undefined>();
 const commentsContainer = ref<HTMLElement | null>(null);
@@ -424,8 +430,10 @@ async function fetchVideoInfo() {
   }
 }
 
-watch(() => route.params.id, (newId) => {
-  videoId.value = newId.toString();
+watch(() => [route.params.id, route.query.v], ([newParamId, newQueryV]) => {
+  const newId = newParamId?.toString() || newQueryV?.toString();
+  if (!newId || newId === videoId.value) return;
+  videoId.value = newId;
   relatedVideos.value = [];
   videoDetails.value = undefined;
   document.title = 'Loading... - Kira';

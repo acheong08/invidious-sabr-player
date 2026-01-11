@@ -108,7 +108,7 @@
 </style>
 
 <template>
-  <router-link class="grid-video-item" :to="`/watch/${data.videoId}`">
+  <router-link class="grid-video-item" :to="`/watch?v=${data.videoId}`">
     <div class="thumbnail-container">
       <img
         :src="data.thumbnail"

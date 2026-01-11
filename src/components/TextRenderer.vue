@@ -104,9 +104,9 @@ function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
   if (endpoint.command.is(YTNodes.WatchEndpoint)) {
     const startTimeSeconds = endpoint.payload.startTimeSeconds;
     
-    let path = `/watch/${endpoint.payload.videoId}`;
+    let path = `/watch?v=${endpoint.payload.videoId}`;
     if (startTimeSeconds) {
-      path += `?st=${startTimeSeconds}`;
+      path += `&st=${startTimeSeconds}`;
     }
     
     router.push(path);

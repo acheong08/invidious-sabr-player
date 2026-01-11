@@ -213,6 +213,17 @@
     transform: rotate(360deg);
   }
 }
+
+.comments-section {
+  margin-top: 24px;
+  width: 100%;
+}
+
+.comments-loading {
+  text-align: center;
+  padding: 20px;
+  color: #aaa;
+}
 </style>
 
 <template>
@@ -253,6 +264,10 @@
         <div class="description" v-if="videoDetails.description">
           <TextRenderer :contents="videoDetails.description"/>
         </div>
+        <div class="comments-section" v-if="commentsHtml || isLoadingComments">
+          <div v-if="isLoadingComments" class="comments-loading">Loading comments...</div>
+          <div v-else v-html="commentsHtml" />
+        </div>
       </div>
     </div>
     <div class="secondary">
@@ -280,6 +295,7 @@ import DownloadDialog from '@/components/DownloadDialog.vue';
 import { useInnertube } from '@/composables/useInnertube';
 import { useToastStore } from '@/stores/toastStore';
 import { useSabrDownloader } from '@/composables/useSabrDownloader';
+import { useComments } from '@/composables/useComments';
 
 import { YTNodes } from 'youtubei.js/web';
 import { VideoDetails, VideoItemData } from '@/utils/helpers';
@@ -298,6 +314,12 @@ const {
   startDownload,
   abortDownload
 } = useSabrDownloader();
+
+const {
+  commentsHtml,
+  isLoading: isLoadingComments,
+  fetchComments
+} = useComments();
 
 const videoId = ref(route.params.id.toString());
 const relatedVideos = ref<VideoItemData[]>([]);
@@ -373,9 +395,13 @@ watch(() => route.params.id, (newId) => {
   videoDetails.value = undefined;
   document.title = 'Loading... - Kira';
   fetchVideoInfo();
+  fetchComments(videoId.value);
 });
 
-onMounted(fetchVideoInfo);
+onMounted(() => {
+  fetchVideoInfo();
+  fetchComments(videoId.value);
+});
 
 onUnmounted(() => document.title = 'Kira');
 </script>

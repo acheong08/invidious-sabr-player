@@ -669,7 +669,16 @@ export function useYoutubePlayer() {
       sabrAdapter.setServerAbrFormats(
         videoInfo.streaming_data.adaptive_formats
           .map(buildSabrFormat)
-          .filter((format) => !format.xtags)
+          .filter((format) => {
+            // Keep formats without xtags (default tracks)
+            if (!format.xtags) return true;
+            // Remove DRC variants to prevent duplicate itag issues
+            if (format.isDrc) return false;
+            // Keep original audio tracks
+            if (format.isOriginal) return true;
+            // Filter out dubbed, auto-dubbed, descriptive, secondary variants
+            return false;
+          })
       );
       sabrAdapter.setUstreamerConfig(
         videoInfo.player_config?.media_common_config
@@ -689,12 +698,23 @@ export function useYoutubePlayer() {
 					`${videoInfo.streaming_data.dash_manifest_url}/mpd_version/7`;
       } else {
         try {
-          // Filter out formats with xtags (DRC variants) to prevent duplicate itag issues
-          // that cause "Could not determine current format" errors in the SABR adapter.
+          // Filter audio tracks to keep only original audio and prevent duplicate itag issues.
+          // - Remove DRC variants (cause "Could not determine current format" errors)
+          // - Remove dubbed, auto-dubbed, descriptive, secondary audio variants
+          // - Keep original audio tracks (identified by is_original flag)
           // This must match the filter applied to setServerAbrFormats() above.
           // Note: format_filter is a reject filter - return true to EXCLUDE the format.
           const dashManifest = await videoInfo.toDash({
-            format_filter: (format) => !!format.xtags,
+            format_filter: (format) => {
+              // Keep formats without xtags (default tracks)
+              if (!format.xtags) return false;
+              // Remove DRC variants to prevent duplicate itag issues
+              if (format.is_drc) return true;
+              // Keep original audio tracks
+              if (format.is_original) return false;
+              // Filter out dubbed, auto-dubbed, descriptive, secondary variants
+              return true;
+            },
             manifest_options: {
               is_sabr: true,
               captions_format: 'vtt',

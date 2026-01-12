@@ -77,7 +77,16 @@ export function useSabrDownloader() {
     const formats =
 			playerResponse.streaming_data?.adaptive_formats
 			  .map(buildSabrFormat)
-			  .filter((format) => !format.xtags) || [];
+			  .filter((format) => {
+			    // Keep formats without xtags (default tracks)
+			    if (!format.xtags) return true;
+			    // Remove DRC variants to prevent duplicate itag issues
+			    if (format.isDrc) return false;
+			    // Keep original audio tracks
+			    if (format.isOriginal) return true;
+			    // Filter out dubbed, auto-dubbed, descriptive, secondary variants
+			    return false;
+			  }) || [];
 
     if (!contentBinding)
       throw new Error('Failed to retrieve content binding for download.');

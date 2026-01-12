@@ -689,7 +689,12 @@ export function useYoutubePlayer() {
 					`${videoInfo.streaming_data.dash_manifest_url}/mpd_version/7`;
       } else {
         try {
+          // Filter out formats with xtags (DRC variants) to prevent duplicate itag issues
+          // that cause "Could not determine current format" errors in the SABR adapter.
+          // This must match the filter applied to setServerAbrFormats() above.
+          // Note: format_filter is a reject filter - return true to EXCLUDE the format.
           const dashManifest = await videoInfo.toDash({
+            format_filter: (format) => !!format.xtags,
             manifest_options: {
               is_sabr: true,
               captions_format: 'vtt',

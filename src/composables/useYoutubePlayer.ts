@@ -818,18 +818,6 @@ export function useYoutubePlayer() {
     } catch (error) {
       console.error(error);
 
-      // Check for Shaka HTTP_ERROR (code 1002) and redirect to /watch/<id> if currently on /watch?v=<id>
-      const isShakaHttpError =
-				error instanceof shaka.util.Error && error.code === 1002;
-      if (isShakaHttpError && route.query.v) {
-        addToast(
-          'Network error detected. Retrying with alternate URL...',
-          'info'
-        );
-        window.location.href = `/watch/${route.query.v}`;
-        return;
-      }
-
       playerState.value = 'error';
       addToast(`Error loading video: ${(error as any).message}`, 'error');
     }

@@ -214,49 +214,6 @@
   }
 }
 
-.comments-section {
-  margin-top: 24px;
-  width: 100%;
-}
-
-.comments-loading {
-  text-align: center;
-  padding: 20px;
-  color: #aaa;
-}
-
-/* Dark mode overrides for comments */
-.comments-section :deep(*) {
-  color: #fff !important;
-}
-
-.comments-section :deep(a) {
-  color: rgb(62, 166, 255) !important;
-}
-
-.comments-section :deep(h3),
-.comments-section :deep(p),
-.comments-section :deep(b),
-.comments-section :deep(div) {
-  background: transparent !important;
-}
-
-.comments-section :deep(.pure-g) {
-  border-bottom: 1px solid #5e5e5e7c;
-  padding: 12px 0;
-}
-
-.comments-section :deep(.channel-profile) {
-  width: 50px !important;
-  flex: 0 0 50px !important;
-}
-
-.comments-section :deep(.channel-profile img) {
-  width: 40px !important;
-  height: 40px !important;
-  border-radius: 50%;
-  margin: 0 !important;
-}
 </style>
 
 <template>
@@ -297,10 +254,6 @@
         <div class="description" v-if="videoDetails.description">
           <TextRenderer :contents="videoDetails.description"/>
         </div>
-        <div class="comments-section" v-if="commentsHtml || isLoadingComments">
-          <div v-if="isLoadingComments" class="comments-loading">Loading comments...</div>
-          <div v-else v-html="commentsHtml" ref="commentsContainer" />
-        </div>
       </div>
     </div>
     <div class="secondary">
@@ -317,143 +270,143 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
-import { useRoute } from 'vue-router';
-
-import VideoPlayer from '@/components/VideoPlayer.vue';
-import RelatedVideoItem from '@/components/RelatedVideoItem.vue';
-import TextRenderer from '@/components/TextRenderer.vue';
-import DownloadDialog from '@/components/DownloadDialog.vue';
-
-import { useInnertube } from '@/composables/useInnertube';
-import { useToastStore } from '@/stores/toastStore';
-import { useSabrDownloader } from '@/composables/useSabrDownloader';
-import { useComments } from '@/composables/useComments';
-
-import { YTNodes } from 'youtubei.js/web';
-import { VideoDetails, VideoItemData } from '@/utils/helpers';
+import { onMounted, onUnmounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
+import { YTNodes } from "youtubei.js/web";
+import DownloadDialog from "@/components/DownloadDialog.vue";
+import RelatedVideoItem from "@/components/RelatedVideoItem.vue";
+import TextRenderer from "@/components/TextRenderer.vue";
+import VideoPlayer from "@/components/VideoPlayer.vue";
+import { useInnertube } from "@/composables/useInnertube";
+import { useSabrDownloader } from "@/composables/useSabrDownloader";
+import { useToastStore } from "@/stores/toastStore";
+import type { VideoDetails, VideoItemData } from "@/utils/helpers";
 
 const route = useRoute();
 const { addToast } = useToastStore();
 const getInnertube = useInnertube();
 
 const {
-  isChoosingFormats,
-  isPreparingDownload,
-  isDownloading,
-  downloadProgress,
-  sabrFormats,
-  openDownloadDialog,
-  startDownload,
-  abortDownload
+	isChoosingFormats,
+	isPreparingDownload,
+	isDownloading,
+	downloadProgress,
+	sabrFormats,
+	openDownloadDialog,
+	startDownload,
+	abortDownload,
 } = useSabrDownloader();
-
-const {
-  commentsHtml,
-  isLoading: isLoadingComments,
-  fetchComments,
-  setupEventListeners
-} = useComments();
 
 // Support both /watch/:id and /watch?v=:id
 const getVideoId = () => {
-  if (route.params.id) return route.params.id.toString();
-  if (route.query.v) return route.query.v.toString();
-  return '';
+	if (route.params.id) return route.params.id.toString();
+	if (route.query.v) return route.query.v.toString();
+	return "";
 };
 const videoId = ref(getVideoId());
 const relatedVideos = ref<VideoItemData[]>([]);
 const videoDetails = ref<VideoDetails | undefined>();
-const commentsContainer = ref<HTMLElement | null>(null);
 
 async function fetchVideoInfo() {
-  const innertube = await getInnertube();
-  if (!innertube) return;
+	const innertube = await getInnertube();
+	if (!innertube) return;
 
-  try {
-    const nextResponse = await innertube.actions.execute('/next', {
-      videoId: videoId.value,
-      parse: true
-    });
+	try {
+		const nextResponse = await innertube.actions.execute("/next", {
+			videoId: videoId.value,
+			parse: true,
+		});
 
-    const videoPrimaryInfo = nextResponse.contents_memo?.getType(YTNodes.VideoPrimaryInfo).first();
-    const videoSecondaryInfo = nextResponse.contents_memo?.getType(YTNodes.VideoSecondaryInfo).first();
-    const secondaryResults = nextResponse.contents?.item().as(YTNodes.TwoColumnWatchNextResults).secondary_results;
+		const videoPrimaryInfo = nextResponse.contents_memo
+			?.getType(YTNodes.VideoPrimaryInfo)
+			.first();
+		const videoSecondaryInfo = nextResponse.contents_memo
+			?.getType(YTNodes.VideoSecondaryInfo)
+			.first();
+		const secondaryResults = nextResponse.contents
+			?.item()
+			.as(YTNodes.TwoColumnWatchNextResults).secondary_results;
 
-    if (videoPrimaryInfo?.title)
-      document.title = videoPrimaryInfo.title.toString();
+		if (videoPrimaryInfo?.title)
+			document.title = videoPrimaryInfo.title.toString();
 
-    videoDetails.value = {
-      title: videoPrimaryInfo?.title.toString() || '',
-      channelName: videoSecondaryInfo?.owner?.author.name || '',
-      channelAvatar: videoSecondaryInfo?.owner?.author.best_thumbnail?.url || '',
-      channelId: videoSecondaryInfo?.owner?.author.id || '',
-      subscribers: videoSecondaryInfo?.owner?.subscriber_count.toString() || '0 subscribers',
-      views: videoPrimaryInfo?.view_count?.short_view_count.isEmpty() ? videoPrimaryInfo.view_count.view_count.toString() : videoPrimaryInfo?.view_count?.short_view_count.toString(),
-      publishDate: videoPrimaryInfo?.relative_date.isEmpty() ? undefined : videoPrimaryInfo?.relative_date.toString(),
-      description: videoSecondaryInfo?.description
-    };
+		videoDetails.value = {
+			title: videoPrimaryInfo?.title.toString() || "",
+			channelName: videoSecondaryInfo?.owner?.author.name || "",
+			channelAvatar:
+				videoSecondaryInfo?.owner?.author.best_thumbnail?.url || "",
+			channelId: videoSecondaryInfo?.owner?.author.id || "",
+			subscribers:
+				videoSecondaryInfo?.owner?.subscriber_count.toString() ||
+				"0 subscribers",
+			views: videoPrimaryInfo?.view_count?.short_view_count.isEmpty()
+				? videoPrimaryInfo.view_count.view_count.toString()
+				: videoPrimaryInfo?.view_count?.short_view_count.toString(),
+			publishDate: videoPrimaryInfo?.relative_date.isEmpty()
+				? undefined
+				: videoPrimaryInfo?.relative_date.toString(),
+			description: videoSecondaryInfo?.description,
+		};
 
-    if (secondaryResults) {
-      for (const item of secondaryResults) {
-        if (item.is(YTNodes.LockupView)) {
-          if (item.content_type !== 'VIDEO')
-            continue;
+		if (secondaryResults) {
+			for (const item of secondaryResults) {
+				if (item.is(YTNodes.LockupView)) {
+					if (item.content_type !== "VIDEO") continue;
 
-          const metadata = item.metadata;
-          const contentImage = item.content_image;
+					const metadata = item.metadata;
+					const contentImage = item.content_image;
 
-          if (!metadata || !contentImage?.is(YTNodes.ThumbnailView))
-            continue;
+					if (!metadata || !contentImage?.is(YTNodes.ThumbnailView)) continue;
 
-          const durationOverlay = contentImage.overlays?.find(
-            (overlay) => overlay.is(YTNodes.ThumbnailOverlayBadgeView) && overlay.position === 'THUMBNAIL_OVERLAY_BADGE_POSITION_BOTTOM_END'
-          )?.as(YTNodes.ThumbnailOverlayBadgeView);
+					const durationOverlay = contentImage.overlays
+						?.find(
+							(overlay) =>
+								overlay.is(YTNodes.ThumbnailOverlayBadgeView) &&
+								overlay.position ===
+									"THUMBNAIL_OVERLAY_BADGE_POSITION_BOTTOM_END",
+						)
+						?.as(YTNodes.ThumbnailOverlayBadgeView);
 
-          relatedVideos.value.push({
-            videoId: item.content_id,
-            title: metadata.title.toHTML() ?? '',
-            titleText: metadata.title.toString(),
-            thumbnail: contentImage.image[0].url,
-            authorAvatar: metadata.image?.as(YTNodes.DecoratedAvatarView)?.avatar?.image[0].url,
-            metadata: metadata.metadata?.metadata_rows.map(row => {
-              return row.metadata_parts?.map(item => item.text?.toString()).join(metadata.metadata?.delimiter) || '';
-            }) || [],
-            duration: durationOverlay?.badges[0]?.text
-          });
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching video details:', error);
-    addToast('Failed to load video details.', 'error');
-  }
+					relatedVideos.value.push({
+						videoId: item.content_id,
+						title: metadata.title.toHTML() ?? "",
+						titleText: metadata.title.toString(),
+						thumbnail: contentImage.image[0].url,
+						authorAvatar: metadata.image?.as(YTNodes.DecoratedAvatarView)
+							?.avatar?.image[0].url,
+						metadata:
+							metadata.metadata?.metadata_rows.map((row) => {
+								return (
+									row.metadata_parts
+										?.map((item) => item.text?.toString())
+										.join(metadata.metadata?.delimiter) || ""
+								);
+							}) || [],
+						duration: durationOverlay?.badges[0]?.text,
+					});
+				}
+			}
+		}
+	} catch (error) {
+		console.error("Error fetching video details:", error);
+		addToast("Failed to load video details.", "error");
+	}
 }
 
-watch(() => [route.params.id, route.query.v], ([newParamId, newQueryV]) => {
-  const newId = newParamId?.toString() || newQueryV?.toString();
-  if (!newId || newId === videoId.value) return;
-  videoId.value = newId;
-  relatedVideos.value = [];
-  videoDetails.value = undefined;
-  document.title = 'Loading... - Kira';
-  fetchVideoInfo();
-  fetchComments(videoId.value);
-});
+watch(
+	() => [route.params.id, route.query.v],
+	([newParamId, newQueryV]) => {
+		const newId = newParamId?.toString() || newQueryV?.toString();
+		if (!newId || newId === videoId.value) return;
+		videoId.value = newId;
+		relatedVideos.value = [];
+		videoDetails.value = undefined;
+		document.title = "Loading... - Kira";
+		fetchVideoInfo();
+	},
+);
 
-// Setup comment event listeners after HTML is rendered
-watch(commentsHtml, () => {
-  nextTick(() => {
-    if (commentsContainer.value) {
-      setupEventListeners(commentsContainer.value);
-    }
-  });
-});
+onMounted(fetchVideoInfo);
 
-onMounted(() => {
-  fetchVideoInfo();
-  fetchComments(videoId.value);
-});
-
-onUnmounted(() => document.title = 'Kira');
+onUnmounted(() => (document.title = "Kira"));
 </script>

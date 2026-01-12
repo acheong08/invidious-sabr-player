@@ -254,6 +254,7 @@
         <div class="description" v-if="videoDetails.description">
           <TextRenderer :contents="videoDetails.description"/>
         </div>
+        <CommentsSection :video-id="videoId" />
       </div>
     </div>
     <div class="secondary">
@@ -273,6 +274,7 @@
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { YTNodes } from "youtubei.js/web";
+import CommentsSection from "@/components/CommentsSection.vue";
 import DownloadDialog from "@/components/DownloadDialog.vue";
 import RelatedVideoItem from "@/components/RelatedVideoItem.vue";
 import TextRenderer from "@/components/TextRenderer.vue";

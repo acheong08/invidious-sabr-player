@@ -1,167 +1,125 @@
 import { ref } from 'vue';
+import type {
+  Comment,
+  CommentSortBy,
+  CommentsResponse
+} from '@/types/comments';
 
-export function useComments() {
-  const commentsHtml = ref<string>('');
+export function useComments(videoId: string) {
+  const comments = ref<Comment[]>([]);
   const isLoading = ref(false);
-  const commentCount = ref<number>(0);
-  const currentVideoId = ref<string>('');
+  const isLoadingMore = ref(false);
+  const commentCount = ref<number | undefined>();
+  const continuation = ref<string | undefined>();
+  const error = ref<string | undefined>();
+  const sortBy = ref<CommentSortBy>('top');
 
-  async function fetchComments(videoId: string) {
+  async function fetchComments(reset = false) {
+    if (reset) {
+      comments.value = [];
+      continuation.value = undefined;
+      error.value = undefined;
+    }
+
     isLoading.value = true;
-    currentVideoId.value = videoId;
-    
+
     try {
-      const url = `/api/v1/comments/${videoId}?format=html&hl=en-US&thin_mode=false`;
-      
-      const response = await fetch(url);
-      
+      const params = new URLSearchParams({
+        sort_by: sortBy.value
+      });
+
+      const response = await fetch(
+        `/api/v1/comments/${videoId}?${params.toString()}`
+      );
+
       if (!response.ok) {
         throw new Error('Failed to fetch comments');
       }
-      
-      const data = await response.json();
-      commentsHtml.value = data.contentHtml || '';
-      commentCount.value = data.commentCount || 0;
-    } catch (error) {
-      console.error('Error fetching comments:', error);
-      commentsHtml.value = '';
-      commentCount.value = 0;
+
+      const data: CommentsResponse = await response.json();
+      comments.value = data.comments;
+      commentCount.value = data.commentCount;
+      continuation.value = data.continuation;
+    } catch (err) {
+      console.error('Error fetching comments:', err);
+      error.value = 'Failed to load comments';
     } finally {
       isLoading.value = false;
     }
   }
 
-  async function getYoutubeReplies(target: HTMLElement, loadMore: boolean, loadReplies: boolean) {
-    const continuation = target.getAttribute('data-continuation');
-    if (!continuation) return;
+  async function loadMore() {
+    if (!continuation.value || isLoadingMore.value) return;
 
-    const body = target.parentElement?.parentElement as HTMLElement;
-    if (!body) return;
-
-    const fallback = body.innerHTML;
-    body.innerHTML = '<p style="text-align:center;color:#aaa;">Loading...</p>';
+    isLoadingMore.value = true;
 
     try {
-      let url = `/api/v1/comments/${currentVideoId.value}?format=html&hl=en-US&thin_mode=false&continuation=${continuation}`;
-      if (loadReplies) {
-        url += '&action=action_get_comment_replies';
-      }
+      const params = new URLSearchParams({
+        sort_by: sortBy.value,
+        continuation: continuation.value
+      });
 
-      const response = await fetch(url);
-      
+      const response = await fetch(
+        `/api/v1/comments/${videoId}?${params.toString()}`
+      );
+
       if (!response.ok) {
-        body.innerHTML = fallback;
-        return;
+        throw new Error('Failed to fetch more comments');
       }
 
-      const data = await response.json();
+      const data: CommentsResponse = await response.json();
+      comments.value.push(...data.comments);
+      continuation.value = data.continuation;
+    } catch (err) {
+      console.error('Error loading more comments:', err);
+    } finally {
+      isLoadingMore.value = false;
+    }
+  }
 
-      if (loadMore) {
-        // For "Load more" - go up to parent container and append
-        const parentContainer = body.parentElement?.parentElement as HTMLElement;
-        if (parentContainer) {
-          body.parentElement?.removeChild(body);
-          parentContainer.insertAdjacentHTML('beforeend', data.contentHtml);
-          setupEventListeners(parentContainer);
-        }
-      } else {
-        // For "View replies" - replace content and add hide button
-        body.innerHTML = '';
-        
-        const p = document.createElement('p');
-        const a = document.createElement('a');
-        a.href = 'javascript:void(0)';
-        a.textContent = 'Hide replies';
-        a.setAttribute('data-sub-text', 'Hide replies');
-        a.setAttribute('data-inner-text', target.textContent || 'Show replies');
-        a.onclick = (e) => hideYoutubeReplies(e);
-        p.appendChild(a);
-        
-        const div = document.createElement('div');
-        div.innerHTML = data.contentHtml;
-        
-        body.appendChild(p);
-        body.appendChild(div);
-        setupEventListeners(body);
+  async function fetchReplies(_commentId: string, replyContinuation: string) {
+    try {
+      const params = new URLSearchParams({
+        continuation: replyContinuation
+      });
+
+      const response = await fetch(
+        `/api/v1/comments/${videoId}?${params.toString()}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch replies');
       }
-    } catch (error) {
-      console.error('Error loading replies:', error);
-      body.innerHTML = fallback;
+
+      const data: CommentsResponse = await response.json();
+      return {
+        replies: data.comments,
+        continuation: data.continuation
+      };
+    } catch (err) {
+      console.error('Error fetching replies:', err);
+      return { replies: [], continuation: undefined };
     }
   }
 
-  function hideYoutubeReplies(event: Event) {
-    const target = event.target as HTMLElement;
-    const subText = target.getAttribute('data-inner-text');
-    const innerText = target.getAttribute('data-sub-text');
-
-    const body = target.parentElement?.parentElement?.children[1] as HTMLElement;
-    if (body) {
-      body.style.display = 'none';
+  function setSortBy(sort: CommentSortBy) {
+    if (sort !== sortBy.value) {
+      sortBy.value = sort;
+      fetchComments(true);
     }
-
-    target.textContent = subText;
-    target.onclick = (e) => showYoutubeReplies(e);
-    target.setAttribute('data-inner-text', innerText || '');
-    target.setAttribute('data-sub-text', subText || '');
-  }
-
-  function showYoutubeReplies(event: Event) {
-    const target = event.target as HTMLElement;
-    const subText = target.getAttribute('data-inner-text');
-    const innerText = target.getAttribute('data-sub-text');
-
-    const body = target.parentElement?.parentElement?.children[1] as HTMLElement;
-    if (body) {
-      body.style.display = '';
-    }
-
-    target.textContent = subText;
-    target.onclick = (e) => hideYoutubeReplies(e);
-    target.setAttribute('data-inner-text', innerText || '');
-    target.setAttribute('data-sub-text', subText || '');
-  }
-
-  function setupEventListeners(container: HTMLElement) {
-    // Handle elements with data-onclick="get_youtube_replies"
-    const replyButtons = container.querySelectorAll('[data-onclick="get_youtube_replies"]');
-    replyButtons.forEach((button) => {
-      const link = button as HTMLAnchorElement;
-      // Remove existing listeners by cloning
-      const newLink = link.cloneNode(true) as HTMLAnchorElement;
-      link.parentNode?.replaceChild(newLink, link);
-      
-      newLink.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const loadMore = newLink.hasAttribute('data-load-more');
-        const loadReplies = newLink.hasAttribute('data-load-replies');
-        await getYoutubeReplies(newLink, loadMore, loadReplies);
-      });
-    });
-
-    // Handle timestamp links with data-onclick="jump_to_time"
-    const timeLinks = container.querySelectorAll('[data-onclick="jump_to_time"]');
-    timeLinks.forEach((link) => {
-      const anchor = link as HTMLAnchorElement;
-      const newAnchor = anchor.cloneNode(true) as HTMLAnchorElement;
-      anchor.parentNode?.replaceChild(newAnchor, anchor);
-      
-      newAnchor.addEventListener('click', (e) => {
-        e.preventDefault();
-        const jumpTime = newAnchor.getAttribute('data-jump-time');
-        if (jumpTime) {
-          // Dispatch a custom event that the video player can listen to
-          window.dispatchEvent(new CustomEvent('seekTo', { detail: parseInt(jumpTime) }));
-        }
-      });
-    });
   }
 
   return {
-    commentsHtml,
+    comments,
     isLoading,
+    isLoadingMore,
     commentCount,
+    continuation,
+    error,
+    sortBy,
     fetchComments,
-    setupEventListeners
+    loadMore,
+    fetchReplies,
+    setSortBy
   };
 }

@@ -1,29 +1,27 @@
+import type { ReloadPlaybackContext } from 'googlevideo/protos';
+import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
+import { buildSabrFormat } from 'googlevideo/utils';
+
+import shaka from 'shaka-player/dist/shaka-player.ui';
 import type { WatchHandle } from 'vue';
 import { onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
-
-import shaka from 'shaka-player/dist/shaka-player.ui';
 import { type ApiResponse, Constants, Utils, YT } from 'youtubei.js/web';
-
-import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
-import type { ReloadPlaybackContext } from 'googlevideo/protos';
-import { buildSabrFormat } from 'googlevideo/utils';
-
+import { useProxySettings } from '@/composables/useProxySettings';
 import { botguardService } from '@/services/botguard';
 import { makePlayerRequest } from '@/services/onesie';
+import { useToastStore } from '@/stores/toastStore';
 import { ShakaPlayerAdapter } from '@/streaming/ShakaPlayerAdapter';
-
+import { checkExtension } from '@/utils/helpers';
 import { useInnertube } from './useInnertube';
 import { useOnesieConfig } from './useOnesieConfig';
-import { useToastStore } from '@/stores/toastStore';
-import { useProxySettings } from '@/composables/useProxySettings';
-import { checkExtension } from '@/utils/helpers';
 
 const VOLUME_KEY = 'youtube_player_volume';
 const PLAYBACK_POSITION_KEY = 'youtube_playback_positions';
 const SAVE_POSITION_INTERVAL_MS = 5000;
 const WIDEVINE_DRM_SYSTEM = 'com.widevine.alpha';
-const INNERTUBE_DRM_LICENSE_URL = 'https://www.youtube.com/youtubei/v1/player/get_drm_license?prettyPrint=false&alt=json';
+const INNERTUBE_DRM_LICENSE_URL =
+	'https://www.youtube.com/youtubei/v1/player/get_drm_license?prettyPrint=false&alt=json';
 const ENABLE_PLAYBACK_TRACKING = true;
 
 /**
@@ -47,12 +45,12 @@ function getDefaultMaxQuality(): number {
   const displayHeight = window.screen.height;
   const devicePixelRatio = window.devicePixelRatio || 1;
   const actualHeight = displayHeight * devicePixelRatio;
-  
+
   // If display is 1080p or lower, cap at display resolution
   if (actualHeight <= 1080) {
     return actualHeight;
   }
-  
+
   // For higher resolution displays, default to 1080p
   return 1080;
 }
@@ -71,12 +69,12 @@ const DEFAULT_ABR_CONFIG = {
 type PlayerState = 'loading' | 'ready' | 'error' | 'buffering';
 
 interface PlayerComponents {
-  player: shaka.Player | null;
-  ui: shaka.ui.Overlay | null;
-  sabrAdapter: SabrStreamingAdapter | null;
-  videoElement: HTMLVideoElement | null;
-  shakaContainer: HTMLElement | null;
-  customSpinner: HTMLElement | null;
+	player: shaka.Player | null;
+	ui: shaka.ui.Overlay | null;
+	sabrAdapter: SabrStreamingAdapter | null;
+	videoElement: HTMLVideoElement | null;
+	shakaContainer: HTMLElement | null;
+	customSpinner: HTMLElement | null;
 }
 
 const playerComponents = shallowRef<PlayerComponents>({
@@ -111,7 +109,9 @@ export function useYoutubePlayer() {
 
   const startTime = Math.floor(Date.now() / 1000);
   const clientPlaybackNonce = Utils.generateRandomString(12);
-  const sessionId = Array.from(Array(16), () => Math.floor(Math.random() * 36).toString(36)).join('');
+  const sessionId = Array.from(Array(16), () =>
+    Math.floor(Math.random() * 36).toString(36)
+  ).join('');
 
   //#region --- Playback Position and Volume Management ---
   function getPlaybackPositions(): Record<string, number> {
@@ -174,18 +174,30 @@ export function useYoutubePlayer() {
 
   //#region --- WebPO Minter ---
   async function mintContentWebPO() {
-    if (!playbackWebPoTokenContentBinding || playbackWebPoTokenCreationLock) return;
+    if (!playbackWebPoTokenContentBinding || playbackWebPoTokenCreationLock)
+      return;
 
     playbackWebPoTokenCreationLock = true;
     try {
-      coldStartToken = botguardService.mintColdStartToken(playbackWebPoTokenContentBinding);
-      console.info('[Player]', `Cold start token created (Content binding: ${decodeURIComponent(playbackWebPoTokenContentBinding)})`);
+      coldStartToken = botguardService.mintColdStartToken(
+        playbackWebPoTokenContentBinding
+      );
+      console.info(
+        '[Player]',
+        `Cold start token created (Content binding: ${decodeURIComponent(playbackWebPoTokenContentBinding)})`
+      );
 
       if (!botguardService.isInitialized()) await botguardService.reinit();
 
       if (botguardService.integrityTokenBasedMinter) {
-        playbackWebPoToken = await botguardService.integrityTokenBasedMinter.mintAsWebsafeString(decodeURIComponent(playbackWebPoTokenContentBinding));
-        console.info('[Player]', `WebPO token created (Content binding: ${decodeURIComponent(playbackWebPoTokenContentBinding)})`);
+        playbackWebPoToken =
+					await botguardService.integrityTokenBasedMinter.mintAsWebsafeString(
+					  decodeURIComponent(playbackWebPoTokenContentBinding)
+					);
+        console.info(
+          '[Player]',
+          `WebPO token created (Content binding: ${decodeURIComponent(playbackWebPoTokenContentBinding)})`
+        );
       }
     } catch (err) {
       console.error('[Player]', 'Error minting WebPO token', err);
@@ -280,7 +292,10 @@ export function useYoutubePlayer() {
     videoEl.addEventListener('volumechange', () => saveVolume(videoEl.volume));
     videoEl.addEventListener('playing', () => {
       const maxQuality = getDefaultMaxQuality();
-      console.info('[Player]', `Setting max quality to ${maxQuality}p (display resolution: ${window.screen.height}p, DPR: ${window.devicePixelRatio || 1})`);
+      console.info(
+        '[Player]',
+        `Setting max quality to ${maxQuality}p (display resolution: ${window.screen.height}p, DPR: ${window.devicePixelRatio || 1})`
+      );
       player.configure('abr.restrictions.maxHeight', maxQuality);
     });
     videoEl.addEventListener('pause', () => {
@@ -290,7 +305,10 @@ export function useYoutubePlayer() {
     });
 
     player.addEventListener('buffering', (event: Event) => {
-      playerState.value = (player.isBuffering() || (event as any).buffering) ? 'buffering' : 'ready';
+      playerState.value =
+				player.isBuffering() || (event as any).buffering
+				  ? 'buffering'
+				  : 'ready';
     });
 
     await player.attach(videoEl);
@@ -313,12 +331,17 @@ export function useYoutubePlayer() {
       customContextMenu: true
     });
 
-    const volumeContainer = shakaContainer.getElementsByClassName('shaka-volume-bar-container');
+    const volumeContainer = shakaContainer.getElementsByClassName(
+      'shaka-volume-bar-container'
+    );
     if (volumeContainer[0]) {
       volumeContainer[0].addEventListener('mousewheel', (event) => {
         event.preventDefault();
         const delta = Math.sign((event as any).deltaY);
-        const newVolume = Math.max(0, Math.min(1, videoEl.volume - delta * 0.05));
+        const newVolume = Math.max(
+          0,
+          Math.min(1, videoEl.volume - delta * 0.05)
+        );
         videoEl.volume = newVolume;
         saveVolume(newVolume);
       });
@@ -348,7 +371,12 @@ export function useYoutubePlayer() {
       clientInfo: {
         osName: innertube.session.context.client.osName,
         osVersion: innertube.session.context.client.osVersion,
-        clientName: parseInt(Constants.CLIENT_NAME_IDS[innertube.session.context.client.clientName as keyof typeof Constants.CLIENT_NAME_IDS]),
+        clientName: parseInt(
+          Constants.CLIENT_NAME_IDS[
+						innertube.session.context.client
+						  .clientName as keyof typeof Constants.CLIENT_NAME_IDS
+          ]
+        ),
         clientVersion: innertube.session.context.client.clientVersion
       }
     });
@@ -369,16 +397,30 @@ export function useYoutubePlayer() {
     });
 
     sabrAdapter.onReloadPlayerResponse(async (reloadPlaybackContext) => {
-      const apiResponse = await fetchVideoInfo(currentVideoId, reloadPlaybackContext);
+      const apiResponse = await fetchVideoInfo(
+        currentVideoId,
+        reloadPlaybackContext
+      );
 
       if (!apiResponse) {
         console.error('[Player]', 'Failed to reload player response');
         return;
       }
 
-      const videoInfo = new YT.VideoInfo([ apiResponse ], innertube.actions, clientPlaybackNonce);
-      sabrAdapter.setStreamingURL(await innertube.session.player!.decipher(videoInfo.streaming_data?.server_abr_streaming_url));
-      sabrAdapter.setUstreamerConfig(videoInfo.player_config?.media_common_config.media_ustreamer_request_config?.video_playback_ustreamer_config);
+      const videoInfo = new YT.VideoInfo(
+        [ apiResponse ],
+        innertube.actions,
+        clientPlaybackNonce
+      );
+      sabrAdapter.setStreamingURL(
+        await innertube.session.player!.decipher(
+          videoInfo.streaming_data?.server_abr_streaming_url
+        )
+      );
+      sabrAdapter.setUstreamerConfig(
+        videoInfo.player_config?.media_common_config
+          .media_ustreamer_request_config?.video_playback_ustreamer_config
+      );
     });
 
     sabrAdapter.attach(player);
@@ -393,7 +435,10 @@ export function useYoutubePlayer() {
     networkingEngine.registerRequestFilter(async (type, request) => {
       let url = new URL(request.uris[0]);
 
-      if ((url.host.endsWith('.googlevideo.com') || url.href.includes('drm')) && !checkExtension()) {
+      if (
+        (url.host.endsWith('.googlevideo.com') || url.href.includes('drm')) &&
+				!checkExtension()
+      ) {
         const newUrl = new URL(url.toString());
         newUrl.searchParams.set('__host', url.host);
         newUrl.pathname = settings.basePath + newUrl.pathname;
@@ -412,19 +457,29 @@ export function useYoutubePlayer() {
           drmParams: decodeURIComponent(drmParams || ''),
           drmSystem: 'DRM_SYSTEM_WIDEVINE',
           drmVideoFeature: 'DRM_VIDEO_FEATURE_SDR',
-          licenseRequest: shaka.util.Uint8ArrayUtils.toBase64(request.body as ArrayBuffer | ArrayBufferView),
+          licenseRequest: shaka.util.Uint8ArrayUtils.toBase64(
+						request.body as ArrayBuffer | ArrayBufferView
+          ),
           sessionId: sessionId,
           videoId: currentVideoId
         };
 
         request.body = shaka.util.StringUtils.toUTF8(JSON.stringify(wrapped));
-      } else if (request.contentType === 'text' && url.href.includes('timedtext')) {
+      } else if (
+        request.contentType === 'text' &&
+				url.href.includes('timedtext')
+      ) {
         const innertube = await getInnertube();
         const params = new URLSearchParams(url.search);
         params.set('c', innertube.session.context.client.clientName);
         params.set('cver', innertube.session.context.client.clientVersion);
         params.set('potc', '1');
-        params.set('pot', await botguardService.integrityTokenBasedMinter?.mintAsWebsafeString(currentVideoId) || '');
+        params.set(
+          'pot',
+          (await botguardService.integrityTokenBasedMinter?.mintAsWebsafeString(
+            currentVideoId
+          )) || ''
+        );
         url.search = params.toString();
       }
 
@@ -433,13 +488,18 @@ export function useYoutubePlayer() {
 
     networkingEngine.registerResponseFilter(async (type, response) => {
       if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
-        const wrapped = JSON.parse(shaka.util.StringUtils.fromUTF8(response.data));
+        const wrapped = JSON.parse(
+          shaka.util.StringUtils.fromUTF8(response.data)
+        );
         response.data = shaka.util.Uint8ArrayUtils.fromBase64(wrapped.license);
       }
     });
   }
 
-  async function fetchVideoInfo(videoId: string, reloadPlaybackContext?: ReloadPlaybackContext): Promise<ApiResponse> {
+  async function fetchVideoInfo(
+    videoId: string,
+    reloadPlaybackContext?: ReloadPlaybackContext
+  ): Promise<ApiResponse> {
     const innertube = await getInnertube();
     const clientConfig = await getClientConfig();
 
@@ -463,17 +523,28 @@ export function useYoutubePlayer() {
     }
 
     if (reloadPlaybackContext) {
-      requestParams.playbackContext.reloadPlaybackContext = reloadPlaybackContext;
+      requestParams.playbackContext.reloadPlaybackContext =
+				reloadPlaybackContext;
     }
 
     try {
       return await makePlayerRequest({
         clientConfig,
-        innertubeRequest: { context: innertube.session.context, ...requestParams }
+        innertubeRequest: {
+          context: innertube.session.context,
+          ...requestParams
+        }
       });
     } catch (error) {
-      console.error('[Player]', 'Onesie request failed, falling back to Innertube:', error);
-      return await innertube.actions.execute('/player', { ...requestParams, parse: false });
+      console.error(
+        '[Player]',
+        'Onesie request failed, falling back to Innertube:',
+        error
+      );
+      return await innertube.actions.execute('/player', {
+        ...requestParams,
+        parse: false
+      });
     }
   }
 
@@ -501,7 +572,9 @@ export function useYoutubePlayer() {
         cr: 'US',
         et: currentTime,
         st: startTime,
-        state: playerComponents.value.videoElement.paused ? 'paused' : 'playing',
+        state: playerComponents.value.videoElement.paused
+          ? 'paused'
+          : 'playing',
         volume: playerComponents.value.videoElement.volume,
         ver: 2,
         muted: playerComponents.value.videoElement.muted ? 1 : 0,
@@ -558,32 +631,62 @@ export function useYoutubePlayer() {
     const innertube = await getInnertube();
     if (!player || !sabrAdapter || !videoElement || !innertube) return;
 
-    const videoInfo = new YT.VideoInfo([ apiResponse ], innertube.actions, clientPlaybackNonce);
-    const isPostLiveDVR = !!videoInfo.basic_info.is_post_live_dvr || (videoInfo.basic_info.is_live_content && !!(videoInfo.streaming_data?.dash_manifest_url || videoInfo.streaming_data?.hls_manifest_url));
+    const videoInfo = new YT.VideoInfo(
+      [ apiResponse ],
+      innertube.actions,
+      clientPlaybackNonce
+    );
+    const isPostLiveDVR =
+			!!videoInfo.basic_info.is_post_live_dvr ||
+			(videoInfo.basic_info.is_live_content &&
+				!!(
+				  videoInfo.streaming_data?.dash_manifest_url ||
+					videoInfo.streaming_data?.hls_manifest_url
+				));
     const playbackTracking = videoInfo.page[0].playback_tracking;
-    const playbackStartConfig = (apiResponse.data?.playerConfig as any)?.playbackStartConfig as {
-      startSeconds?: number
-    } | undefined;
+    const playbackStartConfig = (apiResponse.data?.playerConfig as any)
+      ?.playbackStartConfig as
+			| {
+					startSeconds?: number;
+			  }
+			| undefined;
 
     isLive = !!videoInfo.basic_info.is_live;
     drmParams = (apiResponse.data.streamingData as any)?.drmParams;
 
     if (drmParams) {
-      player.configure({ drm: { servers: { [WIDEVINE_DRM_SYSTEM]: INNERTUBE_DRM_LICENSE_URL } } });
+      player.configure({
+        drm: { servers: { [WIDEVINE_DRM_SYSTEM]: INNERTUBE_DRM_LICENSE_URL } }
+      });
     }
 
     if (videoInfo.streaming_data && !isPostLiveDVR && !isLive) {
-      sabrAdapter.setStreamingURL(await innertube.session.player!.decipher(videoInfo.streaming_data?.server_abr_streaming_url));
-      sabrAdapter.setServerAbrFormats(videoInfo.streaming_data.adaptive_formats.map(buildSabrFormat));
-      sabrAdapter.setUstreamerConfig(videoInfo.player_config?.media_common_config.media_ustreamer_request_config?.video_playback_ustreamer_config);
+      sabrAdapter.setStreamingURL(
+        await innertube.session.player!.decipher(
+          videoInfo.streaming_data?.server_abr_streaming_url
+        )
+      );
+      sabrAdapter.setServerAbrFormats(
+        videoInfo.streaming_data.adaptive_formats
+          .map(buildSabrFormat)
+          .filter((format) => !format.xtags)
+      );
+      sabrAdapter.setUstreamerConfig(
+        videoInfo.player_config?.media_common_config
+          .media_ustreamer_request_config?.video_playback_ustreamer_config
+      );
     }
 
     let manifestUri: string | undefined;
     if (videoInfo.streaming_data) {
       if (isLive) {
-        manifestUri = videoInfo.streaming_data.dash_manifest_url ? `${videoInfo.streaming_data.dash_manifest_url}/mpd_version/7` : videoInfo.streaming_data.hls_manifest_url;
+        manifestUri = videoInfo.streaming_data.dash_manifest_url
+          ? `${videoInfo.streaming_data.dash_manifest_url}/mpd_version/7`
+          : videoInfo.streaming_data.hls_manifest_url;
       } else if (isPostLiveDVR) {
-        manifestUri = videoInfo.streaming_data.hls_manifest_url || `${videoInfo.streaming_data.dash_manifest_url}/mpd_version/7`;
+        manifestUri =
+					videoInfo.streaming_data.hls_manifest_url ||
+					`${videoInfo.streaming_data.dash_manifest_url}/mpd_version/7`;
       } else {
         try {
           const dashManifest = await videoInfo.toDash({
@@ -595,34 +698,55 @@ export function useYoutubePlayer() {
           });
           manifestUri = `data:application/dash+xml;base64,${utf8ToBase64(dashManifest)}`;
         } catch (encodingError) {
-          console.error('[Player]', 'Failed to encode DASH manifest:', encodingError);
-          throw new Error('Failed to encode video manifest. The video may contain unsupported characters.');
+          console.error(
+            '[Player]',
+            'Failed to encode DASH manifest:',
+            encodingError
+          );
+          throw new Error(
+            'Failed to encode video manifest. The video may contain unsupported characters.'
+          );
         }
       }
     }
 
-    if (!manifestUri)
-      throw new Error('Could not find a valid manifest URI.');
+    if (!manifestUri) throw new Error('Could not find a valid manifest URI.');
 
-    playerStartTimeWatcher = watch(() => route.query?.st, (newStartTime) => {
-      const startTime = parseFloat((<string | undefined>newStartTime) || '0');
-      if (!isNaN(startTime)) {
-        videoElement.currentTime = startTime;
-        console.info('[Player]', `Setting start time to ${startTime} seconds`);
-      }
-    }, { immediate: false });
+    playerStartTimeWatcher = watch(
+      () => route.query?.st,
+      (newStartTime) => {
+        const startTime = parseFloat(<string | undefined>newStartTime || '0');
+        if (!isNaN(startTime)) {
+          videoElement.currentTime = startTime;
+          console.info(
+            '[Player]',
+            `Setting start time to ${startTime} seconds`
+          );
+        }
+      },
+      { immediate: false }
+    );
 
-    const startTime = route.query?.st !== undefined
-      ? parseFloat(route.query.st as string) || 0
-      : playbackStartConfig?.startSeconds;
+    const startTime =
+			route.query?.st !== undefined
+			  ? parseFloat(route.query.st as string) || 0
+			  : playbackStartConfig?.startSeconds;
 
     try {
       // Allows YouTube to show/improve recommendations, etc.
       if (playbackTracking && ENABLE_PLAYBACK_TRACKING) {
-        reportPlaybackStats(playbackTracking.videostats_playback_url).then(() => {
-          reportWatchTimeStats(playbackTracking!.videostats_watchtime_url);
-          playbackTrackerInterval = setInterval(() => reportWatchTimeStats(playbackTracking!.videostats_watchtime_url), 30000) as unknown as number;
-        });
+        reportPlaybackStats(playbackTracking.videostats_playback_url).then(
+          () => {
+            reportWatchTimeStats(playbackTracking!.videostats_watchtime_url);
+            playbackTrackerInterval = setInterval(
+              () =>
+                reportWatchTimeStats(
+									playbackTracking!.videostats_watchtime_url
+                ),
+              30000
+            ) as unknown as number;
+          }
+        );
       }
     } catch (err) {
       console.error('[Player]', 'Error reporting playback stats', err);
@@ -651,7 +775,7 @@ export function useYoutubePlayer() {
         await initializeShakaPlayer();
       } else {
         // Reset Shaka player configuration to default ABR behavior.
-        // This is necessary because the player instance is 
+        // This is necessary because the player instance is
         // reused across videos for better performance.
         playerComponents.value.player.configure('abr', DEFAULT_ABR_CONFIG);
       }
@@ -672,7 +796,11 @@ export function useYoutubePlayer() {
 
       const videoInfo = await fetchVideoInfo(videoId);
       if (videoInfo.data.playabilityStatus?.status !== 'OK') {
-        console.error('[Player]', 'Unplayable:', videoInfo.data.playabilityStatus?.reason || 'Unknown reason');
+        console.error(
+          '[Player]',
+          'Unplayable:',
+          videoInfo.data.playabilityStatus?.reason || 'Unknown reason'
+        );
         addToast('Unplayable video.', 'error');
         playerState.value = 'error';
         return;
@@ -686,9 +814,13 @@ export function useYoutubePlayer() {
       console.error(error);
 
       // Check for Shaka HTTP_ERROR (code 1002) and redirect to /watch/<id> if currently on /watch?v=<id>
-      const isShakaHttpError = error instanceof shaka.util.Error && error.code === 1002;
+      const isShakaHttpError =
+				error instanceof shaka.util.Error && error.code === 1002;
       if (isShakaHttpError && route.query.v) {
-        addToast('Network error detected. Retrying with alternate URL...', 'info');
+        addToast(
+          'Network error detected. Retrying with alternate URL...',
+          'info'
+        );
         window.location.href = `/watch/${route.query.v}`;
         return;
       }
@@ -705,8 +837,7 @@ export function useYoutubePlayer() {
       savePlaybackPosition(currentVideoId, videoElement.currentTime);
     }
 
-    if (shakaContainer)
-      shakaContainer.remove();
+    if (shakaContainer) shakaContainer.remove();
 
     await cleanupPreviousVideo();
   });

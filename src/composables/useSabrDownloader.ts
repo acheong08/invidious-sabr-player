@@ -1,25 +1,19 @@
-import { ref } from 'vue';
-
-import { useInnertube } from '@/composables/useInnertube';
-import { useOnesieConfig } from '@/composables/useOnesieConfig';
-import { useToastStore } from '@/stores/toastStore';
-
-import { botguardService } from '@/services/botguard';
-import { makePlayerRequest } from '@/services/onesie';
-
-import type { OnesieHotConfig } from '@/utils/helpers';
-import { checkExtension, fetchFunction } from '@/utils/helpers';
-import type { StartDownloadOptions } from '@/utils/downloadHelpers';
-import { createProgressStream } from '@/utils/downloadHelpers';
-
 import { SabrStream } from 'googlevideo/sabr-stream';
-import { buildSabrFormat, EnabledTrackTypes } from 'googlevideo/utils';
 import type { SabrFormat } from 'googlevideo/shared-types';
-
+import { buildSabrFormat, EnabledTrackTypes } from 'googlevideo/utils';
+import { showSaveFilePicker } from 'native-file-system-adapter';
+import { ref } from 'vue';
 import type { Innertube } from 'youtubei.js/web';
 import { Constants, YT } from 'youtubei.js/web';
-
-import { showSaveFilePicker } from 'native-file-system-adapter';
+import { useInnertube } from '@/composables/useInnertube';
+import { useOnesieConfig } from '@/composables/useOnesieConfig';
+import { botguardService } from '@/services/botguard';
+import { makePlayerRequest } from '@/services/onesie';
+import { useToastStore } from '@/stores/toastStore';
+import type { StartDownloadOptions } from '@/utils/downloadHelpers';
+import { createProgressStream } from '@/utils/downloadHelpers';
+import type { OnesieHotConfig } from '@/utils/helpers';
+import { checkExtension, fetchFunction } from '@/utils/helpers';
 
 let sabrStream: SabrStream | null = null;
 const videoTitle = ref<string>('');
@@ -33,12 +27,16 @@ export function useSabrDownloader() {
   const { addToast } = useToastStore();
   const getInnertube = useInnertube();
   const getClientConfig = useOnesieConfig();
-  
+
   let aborted = false;
-  
+
   const MEMORY_DOWNLOAD_LIMIT = 3 * 1024 * 1024 * 1024;
 
-  async function getPlayerInfo(innertube: Innertube, clientConfig: OnesieHotConfig, videoId: string) {
+  async function getPlayerInfo(
+    innertube: Innertube,
+    clientConfig: OnesieHotConfig,
+    videoId: string
+  ) {
     const requestParams = {
       videoId,
       contentCheckOk: true,
@@ -55,22 +53,40 @@ export function useSabrDownloader() {
 
     const rawPlayerResponse = await makePlayerRequest({
       clientConfig,
-      innertubeRequest: { context: innertube.session.context, ...requestParams }
+      innertubeRequest: {
+        context: innertube.session.context,
+        ...requestParams
+      }
     });
 
     return new YT.VideoInfo([ rawPlayerResponse ], innertube.actions, '');
   }
 
-  async function initializeSabrStream(innertube: Innertube, playerResponse: YT.VideoInfo, videoId: string) {
+  async function initializeSabrStream(
+    innertube: Innertube,
+    playerResponse: YT.VideoInfo,
+    videoId: string
+  ) {
     const contentBinding = innertube.session.context.client.visitorData;
-    const serverAbrStreamingUrl = await innertube.session.player?.decipher(playerResponse.streaming_data?.server_abr_streaming_url);
-    const videoPlaybackUstreamerConfig = playerResponse.player_config?.media_common_config.media_ustreamer_request_config?.video_playback_ustreamer_config;
-    const formats = playerResponse.streaming_data?.adaptive_formats.map(buildSabrFormat) || [];
+    const serverAbrStreamingUrl = await innertube.session.player?.decipher(
+      playerResponse.streaming_data?.server_abr_streaming_url
+    );
+    const videoPlaybackUstreamerConfig =
+			playerResponse.player_config?.media_common_config
+			  .media_ustreamer_request_config?.video_playback_ustreamer_config;
+    const formats =
+			playerResponse.streaming_data?.adaptive_formats
+			  .map(buildSabrFormat)
+			  .filter((format) => !format.xtags) || [];
 
     if (!contentBinding)
       throw new Error('Failed to retrieve content binding for download.');
 
-    if (!videoPlaybackUstreamerConfig || !serverAbrStreamingUrl || formats.length === 0)
+    if (
+      !videoPlaybackUstreamerConfig ||
+			!serverAbrStreamingUrl ||
+			formats.length === 0
+    )
       throw new Error('Failed to retrieve required video data for download.');
 
     videoTitle.value = playerResponse.basic_info.title || 'unknown_video';
@@ -80,10 +96,19 @@ export function useSabrDownloader() {
       formats,
       serverAbrStreamingUrl,
       videoPlaybackUstreamerConfig,
-      fetch: (input, init) => checkExtension() ? fetch(input, init) : fetchFunction(input, init),
-      poToken: await botguardService.integrityTokenBasedMinter?.mintAsWebsafeString(videoId),
+      fetch: (input, init) =>
+        checkExtension() ? fetch(input, init) : fetchFunction(input, init),
+      poToken:
+				await botguardService.integrityTokenBasedMinter?.mintAsWebsafeString(
+				  videoId
+				),
       clientInfo: {
-        clientName: parseInt(Constants.CLIENT_NAME_IDS[innertube.session.context.client.clientName as keyof typeof Constants.CLIENT_NAME_IDS]),
+        clientName: parseInt(
+          Constants.CLIENT_NAME_IDS[
+						innertube.session.context.client
+						  .clientName as keyof typeof Constants.CLIENT_NAME_IDS
+          ]
+        ),
         clientVersion: innertube.session.context.client.clientVersion
       }
     });
@@ -94,10 +119,20 @@ export function useSabrDownloader() {
     try {
       const clientConfig = await getClientConfig();
       const innertube = await getInnertube();
-      const playerResponse = await getPlayerInfo(innertube, clientConfig, videoId);
+      const playerResponse = await getPlayerInfo(
+        innertube,
+        clientConfig,
+        videoId
+      );
 
-      if (playerResponse.basic_info.is_live || playerResponse.basic_info.is_post_live_dvr) {
-        addToast('Live or post-live videos are not supported for download.', 'info');
+      if (
+        playerResponse.basic_info.is_live ||
+				playerResponse.basic_info.is_post_live_dvr
+      ) {
+        addToast(
+          'Live or post-live videos are not supported for download.',
+          'info'
+        );
         return;
       }
 
@@ -105,35 +140,57 @@ export function useSabrDownloader() {
       isChoosingFormats.value = true;
     } catch (error: any) {
       console.error('[useSabrDownloader] Error preparing download:', error);
-      addToast(error.message || 'Failed to prepare download. Check console for details.', 'error');
+      addToast(
+        error.message ||
+					'Failed to prepare download. Check console for details.',
+        'error'
+      );
     } finally {
       isPreparingDownload.value = false;
     }
   }
 
-  async function createDownloadStream(type: 'audio' | 'video', selectedFormat: SabrFormat) {
-    if (!sabrStream)
-      throw new Error('SABR stream not initialized.');
+  async function createDownloadStream(
+    type: 'audio' | 'video',
+    selectedFormat: SabrFormat
+  ) {
+    if (!sabrStream) throw new Error('SABR stream not initialized.');
 
-    const audioFormat = type === 'audio' ? selectedFormat : sabrFormats.value.find((fmt) => fmt.mimeType?.includes('audio'));
-    const videoFormat = type === 'video' ? selectedFormat : sabrFormats.value.find((fmt) => fmt.mimeType?.includes('video'));
+    const audioFormat =
+			type === 'audio'
+			  ? selectedFormat
+			  : sabrFormats.value.find((fmt) => fmt.mimeType?.includes('audio'));
+    const videoFormat =
+			type === 'video'
+			  ? selectedFormat
+			  : sabrFormats.value.find((fmt) => fmt.mimeType?.includes('video'));
 
     const { videoStream, audioStream } = await sabrStream.start({
       audioFormat,
       videoFormat,
-      enabledTrackTypes: type === 'audio' ? EnabledTrackTypes.AUDIO_ONLY : EnabledTrackTypes.VIDEO_ONLY
+      enabledTrackTypes:
+				type === 'audio'
+				  ? EnabledTrackTypes.AUDIO_ONLY
+				  : EnabledTrackTypes.VIDEO_ONLY
     });
 
     const originalStream = type === 'audio' ? audioStream : videoStream;
-    if (!originalStream)
-      throw new Error('Could not create a download stream.');
+    if (!originalStream) throw new Error('Could not create a download stream.');
 
-    return createProgressStream(originalStream, selectedFormat.contentLength, (progress) => {
-      downloadProgress.value = progress;
-    });
+    return createProgressStream(
+      originalStream,
+      selectedFormat.contentLength,
+      (progress) => {
+        downloadProgress.value = progress;
+      }
+    );
   }
 
-  async function startDownload({ selectedFormat, type, filename }: StartDownloadOptions) {
+  async function startDownload({
+    selectedFormat,
+    type,
+    filename
+  }: StartDownloadOptions) {
     if (!selectedFormat) {
       addToast('Selected format not found.', 'error');
       return;
@@ -142,8 +199,15 @@ export function useSabrDownloader() {
     const contentLength = selectedFormat.contentLength;
     const supportsFileSystemAccess = 'showSaveFilePicker' in window;
 
-    if (!supportsFileSystemAccess && contentLength && contentLength > MEMORY_DOWNLOAD_LIMIT) {
-      addToast('This download may fail due to size limitations. Consider using a browser that supports the File System Access API.', 'info');
+    if (
+      !supportsFileSystemAccess &&
+			contentLength &&
+			contentLength > MEMORY_DOWNLOAD_LIMIT
+    ) {
+      addToast(
+        'This download may fail due to size limitations. Consider using a browser that supports the File System Access API.',
+        'info'
+      );
     }
 
     isDownloading.value = true;
@@ -154,10 +218,12 @@ export function useSabrDownloader() {
 
       const fileHandle = await showSaveFilePicker({
         suggestedName: filename,
-        types: [ {
-          description: 'Media File',
-          accept: { [mimeType]: [ `.${filename.split('.').pop()}` ] }
-        } ]
+        types: [
+          {
+            description: 'Media File',
+            accept: { [mimeType]: [ `.${filename.split('.').pop()}` ] }
+          }
+        ]
       });
 
       addToast('Downloading...\nKeep this window open to continue.', 'info');

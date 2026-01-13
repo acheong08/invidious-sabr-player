@@ -281,12 +281,14 @@ import TextRenderer from "@/components/TextRenderer.vue";
 import VideoPlayer from "@/components/VideoPlayer.vue";
 import { useInnertube } from "@/composables/useInnertube";
 import { useSabrDownloader } from "@/composables/useSabrDownloader";
+import { useYoutubePlayer } from "@/composables/useYoutubePlayer";
 import { useToastStore } from "@/stores/toastStore";
 import type { VideoDetails, VideoItemData } from "@/utils/helpers";
 
 const route = useRoute();
 const { addToast } = useToastStore();
 const getInnertube = useInnertube();
+const { togglePlayPause, seek } = useYoutubePlayer();
 
 const {
 	isChoosingFormats,
@@ -408,7 +410,47 @@ watch(
 	},
 );
 
-onMounted(fetchVideoInfo);
+/**
+ * Handles keyboard events for video playback controls.
+ * - Space: Toggle play/pause
+ * - ArrowLeft: Seek backward 5 seconds
+ * - ArrowRight: Seek forward 5 seconds
+ */
+function handleKeydown(event: KeyboardEvent): void {
+	// Don't interfere with typing in input fields
+	const activeElement = document.activeElement;
+	if (
+		activeElement &&
+		(activeElement.tagName === "INPUT" ||
+			activeElement.tagName === "TEXTAREA" ||
+			(activeElement as HTMLElement).isContentEditable)
+	) {
+		return;
+	}
 
-onUnmounted(() => (document.title = "Kira"));
+	switch (event.code) {
+		case "Space":
+			event.preventDefault(); // Prevent page scroll
+			togglePlayPause();
+			break;
+		case "ArrowLeft":
+			event.preventDefault();
+			seek(-5);
+			break;
+		case "ArrowRight":
+			event.preventDefault();
+			seek(5);
+			break;
+	}
+}
+
+onMounted(() => {
+	fetchVideoInfo();
+	document.addEventListener("keydown", handleKeydown);
+});
+
+onUnmounted(() => {
+	document.title = "Kira";
+	document.removeEventListener("keydown", handleKeydown);
+});
 </script>

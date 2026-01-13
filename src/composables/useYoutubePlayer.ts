@@ -20,6 +20,14 @@ const VOLUME_KEY = 'youtube_player_volume';
 const PLAYBACK_POSITION_KEY = 'youtube_playback_positions';
 const SAVE_POSITION_INTERVAL_MS = 5000;
 const WIDEVINE_DRM_SYSTEM = 'com.widevine.alpha';
+
+/**
+ * Detects if the current device is a touch device (mobile/tablet).
+ * Used to conditionally enable the big play button on touch devices.
+ */
+function isTouchDevice(): boolean {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
 const INNERTUBE_DRM_LICENSE_URL =
 	'https://www.youtube.com/youtubei/v1/player/get_drm_license?prettyPrint=false&alt=json';
 const ENABLE_PLAYBACK_TRACKING = true;
@@ -315,7 +323,7 @@ export function useYoutubePlayer() {
     const ui = new shaka.ui.Overlay(player, shakaContainer, videoEl);
 
     ui.configure({
-      addBigPlayButton: false,
+      addBigPlayButton: isTouchDevice(),
       overflowMenuButtons: [
         'captions',
         'quality',
@@ -870,6 +878,42 @@ export function useYoutubePlayer() {
     }
   }
 
+  /**
+	 * Toggles play/pause state of the video.
+	 */
+  function togglePlayPause(): void {
+    const { videoElement } = playerComponents.value;
+    if (!videoElement) return;
+
+    if (videoElement.paused) {
+      videoElement.play();
+    } else {
+      videoElement.pause();
+    }
+  }
+
+  /**
+	 * Seeks the video by a given number of seconds (positive or negative).
+	 * @param seconds - Number of seconds to seek (negative for backward, positive for forward)
+	 */
+  function seek(seconds: number): void {
+    const { videoElement } = playerComponents.value;
+    if (!videoElement) return;
+
+    const newTime = Math.max(
+      0,
+      Math.min(videoElement.duration, videoElement.currentTime + seconds)
+    );
+    videoElement.currentTime = newTime;
+  }
+
+  /**
+	 * Gets the current video element (for external access if needed).
+	 */
+  function getVideoElement(): HTMLVideoElement | null {
+    return playerComponents.value.videoElement;
+  }
+
   onUnmounted(async () => {
     const { videoElement, shakaContainer } = playerComponents.value;
 
@@ -886,6 +930,9 @@ export function useYoutubePlayer() {
     player: playerComponents.value.player,
     ui: playerComponents.value.ui,
     playerState,
-    loadVideo
+    loadVideo,
+    togglePlayPause,
+    seek,
+    getVideoElement
   };
 }

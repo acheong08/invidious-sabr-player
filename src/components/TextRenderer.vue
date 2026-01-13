@@ -68,7 +68,6 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { Misc, YTNodes } from "youtubei.js/web";
 import { useYoutubePlayer } from "@/composables/useYoutubePlayer";
-import { router } from "@/router";
 import { escape } from "@/utils/helpers";
 import UniqueKeyGenerator from "@/utils/keyGen";
 
@@ -107,10 +106,11 @@ const YOUTUBE_HOSTS = [
 ];
 
 /**
- * Checks if a URL is a YouTube URL and returns the rewritten path if applicable.
- * Returns null if the URL is not a YouTube URL or cannot be handled internally.
+ * Checks if a URL is a YouTube video URL and returns the video ID and timestamp if applicable.
+ * Only handles video URLs (/watch, youtu.be), not channels or other pages.
+ * Returns null if the URL is not a YouTube video URL.
  */
-function rewriteYouTubeUrl(urlString: string): string | null {
+function parseYouTubeVideoUrl(urlString: string): { videoId: string; t?: string } | null {
 	try {
 		const url = new URL(urlString);
 		const host = url.hostname.toLowerCase();
@@ -123,33 +123,19 @@ function rewriteYouTubeUrl(urlString: string): string | null {
 		if (host === "youtu.be") {
 			const videoId = url.pathname.slice(1); // Remove leading /
 			if (videoId) {
-				const t = url.searchParams.get("t");
-				let path = `/watch?v=${videoId}`;
-				if (t) path += `&t=${t}`;
-				return path;
+				const t = url.searchParams.get("t") || undefined;
+				return { videoId, t };
 			}
 			return null;
 		}
 
-		// Handle youtube.com watch URLs
+		// Handle youtube.com watch URLs only
 		if (url.pathname === "/watch") {
 			const videoId = url.searchParams.get("v");
 			if (videoId) {
-				const t = url.searchParams.get("t");
-				let path = `/watch?v=${videoId}`;
-				if (t) path += `&t=${t}`;
-				return path;
+				const t = url.searchParams.get("t") || undefined;
+				return { videoId, t };
 			}
-		}
-
-		// Handle youtube.com/channel/ URLs
-		if (url.pathname.startsWith("/channel/")) {
-			return url.pathname;
-		}
-
-		// Handle youtube.com/@username URLs
-		if (url.pathname.startsWith("/@")) {
-			return url.pathname;
 		}
 
 		return null;
@@ -168,25 +154,19 @@ function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
 		const url = endpoint.toURL();
 		if (!url) return;
 
-		const rewrittenPath = rewriteYouTubeUrl(url);
+		const parsed = parseYouTubeVideoUrl(url);
 
-		if (rewrittenPath) {
-			// Check if it's a watch URL for the current video with a timestamp
-			if (rewrittenPath.startsWith("/watch?v=")) {
-				const params = new URLSearchParams(rewrittenPath.split("?")[1]);
-				const targetVideoId = params.get("v");
-				const t = params.get("t");
-				const currentVideoId = getCurrentVideoId();
-
-				if (targetVideoId === currentVideoId && t) {
-					seekToTime(parseInt(t, 10));
-					return;
-				}
+		// If it's a YouTube video URL for the current video with a timestamp, seek directly
+		if (parsed) {
+			const currentVideoId = getCurrentVideoId();
+			if (parsed.videoId === currentVideoId && parsed.t) {
+				seekToTime(parseInt(parsed.t, 10));
+				return;
 			}
-			router.push(rewrittenPath);
-		} else {
-			window.open(url, "_blank");
 		}
+
+		// For all other URLs (including YouTube videos for different videos), open externally
+		window.open(url, "_blank");
 		return;
 	}
 
@@ -203,12 +183,12 @@ function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
 			return;
 		}
 
-		let path = `/watch?v=${targetVideoId}`;
+		// For different videos, open externally
+		let url = `${window.location.origin}/watch?v=${targetVideoId}`;
 		if (startTimeSeconds) {
-			path += `&t=${startTimeSeconds}`;
+			url += `&t=${startTimeSeconds}`;
 		}
-
-		router.push(path);
+		window.open(url, "_blank");
 	}
 }
 

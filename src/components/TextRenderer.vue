@@ -64,86 +64,87 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
-import { Misc, YTNodes } from 'youtubei.js/web';
-import UniqueKeyGenerator from '@/utils/keyGen';
-import { escape } from '@/utils/helpers';
-import { router } from '@/router';
+import { computed } from "vue";
+import { Misc, YTNodes } from "youtubei.js/web";
+import { router } from "@/router";
+import { escape } from "@/utils/helpers";
+import UniqueKeyGenerator from "@/utils/keyGen";
 
 const props = defineProps<{
-  contents: Misc.Text;
-  collapsed?: boolean;
-  collapsedLines?: number;
+	contents: Misc.Text;
+	collapsed?: boolean;
+	collapsedLines?: number;
 }>();
 
 const keyGen = new UniqueKeyGenerator();
 
 const collapsedStyle = computed(() => {
-  if (props.collapsed && props.collapsedLines) {
-    return {
-      '-webkit-line-clamp': props.collapsedLines
-    };
-  }
-  return {};
+	if (props.collapsed && props.collapsedLines) {
+		return {
+			"-webkit-line-clamp": props.collapsedLines,
+		};
+	}
+	return {};
 });
 
 function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
-  event.stopPropagation();
-  event.preventDefault();
+	event.stopPropagation();
+	event.preventDefault();
 
-  if (!endpoint)
-    return;
+	if (!endpoint) return;
 
-  if (endpoint.name === 'urlEndpoint') {
-    window.open(endpoint.toURL(), '_blank');
-  }
+	if (endpoint.name === "urlEndpoint") {
+		window.open(endpoint.toURL(), "_blank");
+	}
 
-  if (!endpoint.command)
-    return;
+	if (!endpoint.command) return;
 
-  if (endpoint.command.is(YTNodes.WatchEndpoint)) {
-    const startTimeSeconds = endpoint.payload.startTimeSeconds;
-    
-    let path = `/watch?v=${endpoint.payload.videoId}`;
-    if (startTimeSeconds) {
-      path += `&st=${startTimeSeconds}`;
-    }
-    
-    router.push(path);
-  } 
+	if (endpoint.command.is(YTNodes.WatchEndpoint)) {
+		const startTimeSeconds = endpoint.payload.startTimeSeconds;
+
+		let path = `/watch?v=${endpoint.payload.videoId}`;
+		if (startTimeSeconds) {
+			path += `&st=${startTimeSeconds}`;
+		}
+
+		router.push(path);
+	}
 }
 
 function renderText(run: Misc.TextRun) {
-  const tags: string[] = [];
+	const tags: string[] = [];
 
-  if (run.bold) tags.push('b');
-  if (run.italics) tags.push('i');
-  if (run.strikethrough) tags.push('s');
-  if (run.deemphasize) tags.push('small');
+	if (run.bold) tags.push("b");
+	if (run.italics) tags.push("i");
+	if (run.strikethrough) tags.push("s");
+	if (run.deemphasize) tags.push("small");
 
-  const escaped_text = escape(run.text);
+	const escaped_text = escape(run.text);
 
-  if (!escaped_text)
-    return '';
+	if (!escaped_text) return "";
 
-  const styled_text = tags.map((tag) => `<${tag}>`).join('') + escaped_text + tags.map((tag) => `</${tag}>`).join('');
-  return `<span style="white-space: pre-wrap;">${styled_text}</span>`;
+	const styled_text =
+		tags.map((tag) => `<${tag}>`).join("") +
+		escaped_text +
+		tags.map((tag) => `</${tag}>`).join("");
+	return `<span style="white-space: pre-wrap;">${styled_text}</span>`;
 }
 
 const attachmentData = computed(() => {
-  const result = new Map();
-  if (props.contents.runs) {
-    for (const run of props.contents.runs) {
-      if (run instanceof Misc.TextRun && (run.attachment && run.endpoint)) {
-        const key = keyGen.generate(run);
-        result.set(key, {
-          imageURL: run.attachment.element.type.imageType.image.sources[0].url,
-          width: run.attachment.element.properties.layoutProperties.width.value,
-          height: run.attachment.element.properties.layoutProperties.height.value
-        });
-      }
-    }
-  }
-  return result;
+	const result = new Map();
+	if (props.contents.runs) {
+		for (const run of props.contents.runs) {
+			if (run instanceof Misc.TextRun && run.attachment && run.endpoint) {
+				const key = keyGen.generate(run);
+				result.set(key, {
+					imageURL: run.attachment.element.type.imageType.image.sources[0].url,
+					width: run.attachment.element.properties.layoutProperties.width.value,
+					height:
+						run.attachment.element.properties.layoutProperties.height.value,
+				});
+			}
+		}
+	}
+	return result;
 });
 </script>

@@ -349,32 +349,33 @@ body {
 </template>
 
 <script lang="ts" setup>
-import { onMounted, provide, ref, shallowRef } from 'vue';
-
-import ToastNotification from '@/components/ToastNotification.vue';
-
-import HomeIcon from '@/components/icons/HomeIcon.vue';
-import SearchIcon from '@/components/icons/SearchIcon.vue';
-import SubscriptionsIcon from '@/components/icons/SubscriptionsIcon.vue';
-
-import { useProxySettings } from '@/composables/useProxySettings';
-import { useToastStore } from '@/stores/toastStore';
-
-import { Innertube, Platform, UniversalCache, Types } from 'youtubei.js/web';
-import { base64ToU8 } from 'googlevideo/utils';
-import { botguardService } from '@/services/botguard';
+import { base64ToU8 } from "googlevideo/utils";
+import { onMounted, provide, ref, shallowRef } from "vue";
+import {
+	Innertube,
+	Platform,
+	type Types,
+	UniversalCache,
+} from "youtubei.js/web";
+import HomeIcon from "@/components/icons/HomeIcon.vue";
+import SearchIcon from "@/components/icons/SearchIcon.vue";
+import SubscriptionsIcon from "@/components/icons/SubscriptionsIcon.vue";
+import ToastNotification from "@/components/ToastNotification.vue";
+import { useProxySettings } from "@/composables/useProxySettings";
+import { botguardService } from "@/services/botguard";
+import { useToastStore } from "@/stores/toastStore";
 
 import {
-  CLIENT_CONFIG_STORAGE_KEY,
-  OnesieHotConfig,
-  REDIRECTOR_STORAGE_KEY,
-  checkExtension,
-  configImageHttpProxy,
-  fetchFunction,
-  isConfigValid,
-  isFirstTime,
-  loadCachedClientConfig
-} from './utils/helpers';
+	CLIENT_CONFIG_STORAGE_KEY,
+	checkExtension,
+	configImageHttpProxy,
+	fetchFunction,
+	isConfigValid,
+	isFirstTime,
+	loadCachedClientConfig,
+	type OnesieHotConfig,
+	REDIRECTOR_STORAGE_KEY,
+} from "./utils/helpers";
 
 const { addToast } = useToastStore();
 const { isProxyConfigured } = useProxySettings();
@@ -384,145 +385,160 @@ let clientConfigPromise: Promise<OnesieHotConfig | undefined> | undefined;
 const innertubeInstance = shallowRef<Innertube | undefined>(undefined);
 const clientConfigObject = shallowRef<OnesieHotConfig | undefined>(undefined);
 
-const searchQuery = ref('');
-Platform.shim.eval = async (data: Types.BuildScriptResult, env: Record<string, Types.VMPrimative>) => {
-  const properties = [];
+const searchQuery = ref("");
+Platform.shim.eval = async (
+	data: Types.BuildScriptResult,
+	env: Record<string, Types.VMPrimative>,
+) => {
+	const properties = [];
 
-  if (env.n) {
-    properties.push(`n: exportedVars.nFunction("${env.n}")`);
-  }
+	if (env.n) {
+		properties.push(`n: exportedVars.nFunction("${env.n}")`);
+	}
 
-  if (env.sig) {
-    properties.push(`sig: exportedVars.sigFunction("${env.sig}")`);
-  }
+	if (env.sig) {
+		properties.push(`sig: exportedVars.sigFunction("${env.sig}")`);
+	}
 
-  const code = `${data.output}\nreturn { ${properties.join(', ')} }`;
+	const code = `${data.output}\nreturn { ${properties.join(", ")} }`;
 
-  return new Function(code)();
+	return new Function(code)();
 };
 
 async function initInnertube() {
-  const firstTime = await isFirstTime();
+	const firstTime = await isFirstTime();
 
-  try {
-    console.info('[App]', `Initializing InnerTube API [firstTime=${firstTime}]`);
+	try {
+		console.info(
+			"[App]",
+			`Initializing InnerTube API [firstTime=${firstTime}]`,
+		);
 
-    const instance = await Innertube.create({
-      cache: new UniversalCache(true),
-      fetch: fetchFunction
-    });
+		const instance = await Innertube.create({
+			cache: new UniversalCache(true),
+			fetch: fetchFunction,
+		});
 
-    botguardService.init().then((bgClient) => {
-      console.info('[App]', 'BotGuard client initialized');
-      Object.assign(window, { botguardService, bgClient }); // For testing and stuff.
-    });
+		botguardService.init().then((bgClient) => {
+			console.info("[App]", "BotGuard client initialized");
+			Object.assign(window, { botguardService, bgClient }); // For testing and stuff.
+		});
 
-    // Preload the redirector URL to avoid extra delays later...
-    const redirectorResponse = await fetchFunction(`https://redirector.googlevideo.com/initplayback?source=youtube&itag=0&pvi=0&pai=0&owc=yes&cmo:sensitive_content=yes&alr=yes&id=${Math.round(Math.random() * 1E5)}`, { method: 'GET' });
-    const redirectorResponseUrl = await redirectorResponse.text();
+		// Preload the redirector URL to avoid extra delays later...
+		const redirectorResponse = await fetchFunction(
+			`https://redirector.googlevideo.com/initplayback?source=youtube&itag=0&pvi=0&pai=0&owc=yes&cmo:sensitive_content=yes&alr=yes&id=${Math.round(Math.random() * 1e5)}`,
+			{ method: "GET" },
+		);
+		const redirectorResponseUrl = await redirectorResponse.text();
 
-    if (redirectorResponseUrl.startsWith('https://')) {
-      localStorage.setItem(REDIRECTOR_STORAGE_KEY, redirectorResponseUrl);
-    }
+		if (redirectorResponseUrl.startsWith("https://")) {
+			localStorage.setItem(REDIRECTOR_STORAGE_KEY, redirectorResponseUrl);
+		}
 
-    innertubeInstance.value = instance;
-    return instance;
-  } catch (error) {
-    addToast('Failed to initialize InnerTube API', 'error');
-    console.error('[App]', 'Failed to initialize Innertube', error);
-    innertubePromise = undefined;
+		innertubeInstance.value = instance;
+		return instance;
+	} catch (error) {
+		addToast("Failed to initialize InnerTube API", "error");
+		console.error("[App]", "Failed to initialize Innertube", error);
+		innertubePromise = undefined;
 
-    // YouTube.js will fall back to local session generation if this is the first
-    // time the app is loaded, and the request to /sw.js_data fails for some reason.
-    // Since local sessions may cause playback issues, delete the IndexedDB database 
-    // to force it to regenerate.
-    // @TODO: Add a setting in YouTube.js to disable this crap (local session fallback).
-    if (firstTime) {
-      const request = indexedDB.deleteDatabase('youtubei.js');
-      request.onsuccess = () => console.info('[App]', 'Deleted bad session cache.');
-    }
+		// YouTube.js will fall back to local session generation if this is the first
+		// time the app is loaded, and the request to /sw.js_data fails for some reason.
+		// Since local sessions may cause playback issues, delete the IndexedDB database
+		// to force it to regenerate.
+		// @TODO: Add a setting in YouTube.js to disable this crap (local session fallback).
+		if (firstTime) {
+			const request = indexedDB.deleteDatabase("youtubei.js");
+			request.onsuccess = () =>
+				console.info("[App]", "Deleted bad session cache.");
+		}
 
-    return undefined;
-  }
+		return undefined;
+	}
 }
 
 async function fetchOnesieHotConfig(): Promise<OnesieHotConfig | undefined> {
-  const cachedConfig = loadCachedClientConfig();
-  if (cachedConfig) {
-    clientConfigObject.value = cachedConfig;
-    return cachedConfig;
-  }
+	const cachedConfig = loadCachedClientConfig();
+	if (cachedConfig) {
+		clientConfigObject.value = cachedConfig;
+		return cachedConfig;
+	}
 
-  try {
-    const tvConfigResponse = await fetchFunction('https://www.youtube.com/tv_config?action_get_config=true&client=lb4&theme=cl', {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version'
-      }
-    });
+	try {
+		const tvConfigResponse = await fetchFunction(
+			"https://www.youtube.com/tv_config?action_get_config=true&client=lb4&theme=cl",
+			{
+				method: "GET",
+				headers: {
+					"User-Agent": "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version",
+				},
+			},
+		);
 
-    const tvConfigJson = JSON.parse((await tvConfigResponse.text()).slice(4));
-    const webPlayerContextConfig = tvConfigJson.webPlayerContextConfig.WEB_PLAYER_CONTEXT_CONFIG_ID_LIVING_ROOM_WATCH;
-    const onesieHotConfig = webPlayerContextConfig.onesieHotConfig;
+		const tvConfigJson = JSON.parse((await tvConfigResponse.text()).slice(4));
+		const webPlayerContextConfig =
+			tvConfigJson.webPlayerContextConfig
+				.WEB_PLAYER_CONTEXT_CONFIG_ID_LIVING_ROOM_WATCH;
+		const onesieHotConfig = webPlayerContextConfig.onesieHotConfig;
 
-    const config = {
-      clientKeyData: base64ToU8(onesieHotConfig.clientKey),
-      keyExpiresInSeconds: onesieHotConfig.keyExpiresInSeconds,
-      encryptedClientKey: base64ToU8(onesieHotConfig.encryptedClientKey),
-      onesieUstreamerConfig: base64ToU8(onesieHotConfig.onesieUstreamerConfig),
-      baseUrl: onesieHotConfig.baseUrl,
-      timestamp: Date.now()
-    };
+		const config = {
+			clientKeyData: base64ToU8(onesieHotConfig.clientKey),
+			keyExpiresInSeconds: onesieHotConfig.keyExpiresInSeconds,
+			encryptedClientKey: base64ToU8(onesieHotConfig.encryptedClientKey),
+			onesieUstreamerConfig: base64ToU8(onesieHotConfig.onesieUstreamerConfig),
+			baseUrl: onesieHotConfig.baseUrl,
+			timestamp: Date.now(),
+		};
 
-    localStorage.setItem(CLIENT_CONFIG_STORAGE_KEY, JSON.stringify(config));
+		localStorage.setItem(CLIENT_CONFIG_STORAGE_KEY, JSON.stringify(config));
 
-    clientConfigObject.value = config;
-    return config;
-  } catch (error) {
-    console.error('[App]', 'Failed to fetch Onesie client config', error);
-    clientConfigPromise = undefined;
-    return undefined;
-  }
+		clientConfigObject.value = config;
+		return config;
+	} catch (error) {
+		console.error("[App]", "Failed to fetch Onesie client config", error);
+		clientConfigPromise = undefined;
+		return undefined;
+	}
 }
 
 async function getInnertube() {
-  if (innertubeInstance.value) return innertubeInstance.value;
-  if (!innertubePromise) innertubePromise = initInnertube();
-  return innertubePromise;
+	if (innertubeInstance.value) return innertubeInstance.value;
+	if (!innertubePromise) innertubePromise = initInnertube();
+	return innertubePromise;
 }
 
 async function getClientConfig() {
-  if (clientConfigObject.value) {
-    if (!isConfigValid(clientConfigObject.value)) {
-      clientConfigPromise = undefined;
-      clientConfigObject.value = undefined;
-      localStorage.removeItem(CLIENT_CONFIG_STORAGE_KEY);
-      return fetchOnesieHotConfig();
-    }
-    return clientConfigObject.value;
-  }
+	if (clientConfigObject.value) {
+		if (!isConfigValid(clientConfigObject.value)) {
+			clientConfigPromise = undefined;
+			clientConfigObject.value = undefined;
+			localStorage.removeItem(CLIENT_CONFIG_STORAGE_KEY);
+			return fetchOnesieHotConfig();
+		}
+		return clientConfigObject.value;
+	}
 
-  if (!clientConfigPromise) clientConfigPromise = fetchOnesieHotConfig();
-  return clientConfigPromise;
+	if (!clientConfigPromise) clientConfigPromise = fetchOnesieHotConfig();
+	return clientConfigPromise;
 }
 
 function handleSearchSubmit() {
-  if (searchQuery.value.trim()) {
-    window.location.href = `/search?q=${encodeURIComponent(searchQuery.value.trim())}`;
-  }
+	if (searchQuery.value.trim()) {
+		window.location.href = `/search?q=${encodeURIComponent(searchQuery.value.trim())}`;
+	}
 }
 
-provide('innertube', getInnertube);
-provide('onesieHotConfig', getClientConfig);
+provide("innertube", getInnertube);
+provide("onesieHotConfig", getClientConfig);
 
 innertubePromise = initInnertube();
 clientConfigPromise = fetchOnesieHotConfig();
 
 onMounted(async () => {
-  const isExtensionInstalled = checkExtension();
+	const isExtensionInstalled = checkExtension();
 
-  if (!isExtensionInstalled && isProxyConfigured.value) {
-    configImageHttpProxy();
-  }
+	if (!isExtensionInstalled && isProxyConfigured.value) {
+		configImageHttpProxy();
+	}
 });
 </script>

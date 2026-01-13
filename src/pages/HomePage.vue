@@ -130,12 +130,12 @@
   </div>
 </template>
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
-import GridVideoItem from '@/components/GridVideoItem.vue';
-import { useInnertube } from '@/composables/useInnertube';
-import { useToastStore } from '@/stores/toastStore';
-import { YTNodes } from 'youtubei.js/web';
-import type { VideoItemData } from '@/utils/helpers';
+import { onMounted, ref, watch } from "vue";
+import { YTNodes } from "youtubei.js/web";
+import GridVideoItem from "@/components/GridVideoItem.vue";
+import { useInnertube } from "@/composables/useInnertube";
+import { useToastStore } from "@/stores/toastStore";
+import type { VideoItemData } from "@/utils/helpers";
 
 const getInnertube = useInnertube();
 const { addToast } = useToastStore();
@@ -145,82 +145,99 @@ const showRecommendations = ref(true);
 const homeRecommendations = ref<VideoItemData[]>([]);
 
 watch(showRecommendations, (val) => {
-  localStorage.setItem('showRecommendations', val.toString());
+	localStorage.setItem("showRecommendations", val.toString());
 });
 
 function toggleRecommendations() {
-  showRecommendations.value = !showRecommendations.value;
+	showRecommendations.value = !showRecommendations.value;
 }
 
 onMounted(async () => {
-  loading.value = true;
+	loading.value = true;
 
-  const saved = localStorage.getItem('showRecommendations');
-  if (saved !== null) {
-    showRecommendations.value = JSON.parse(saved);
-  }
-  
-  const innertube = await getInnertube();
-  if (!innertube) {
-    loading.value = false;
-    return;
-  }
-  
-  try {
-    const home = await innertube.getHomeFeed();
+	const saved = localStorage.getItem("showRecommendations");
+	if (saved !== null) {
+		showRecommendations.value = JSON.parse(saved);
+	}
 
-    if (home.page.contents_memo) {
-      const items = home.page.contents_memo.getType(YTNodes.LockupView, YTNodes.Video);
+	const innertube = await getInnertube();
+	if (!innertube) {
+		loading.value = false;
+		return;
+	}
 
-      for (const item of items) {
-        if (item.is(YTNodes.LockupView)) {
-          if (item.content_type !== 'VIDEO') 
-            continue;
+	try {
+		const home = await innertube.getHomeFeed();
 
-          const metadata = item.metadata;
-          const contentImage = item.content_image
-          
-          if (!metadata || !contentImage?.is(YTNodes.ThumbnailView)) 
-            continue;
-          
-          const durationOverlay = contentImage.overlays.find(
-            (overlay) => overlay.is(YTNodes.ThumbnailOverlayBadgeView) && overlay.position === 'THUMBNAIL_OVERLAY_BADGE_POSITION_BOTTOM_END'
-          )?.as(YTNodes.ThumbnailOverlayBadgeView);
+		if (home.page.contents_memo) {
+			const items = home.page.contents_memo.getType(
+				YTNodes.LockupView,
+				YTNodes.Video,
+			);
 
-          homeRecommendations.value.push({
-            videoId: item.content_id,
-            title: metadata.title.toHTML() ?? '',
-            titleText: metadata.title.toString(),
-            thumbnail: contentImage.image[0].url,
-            metadata: metadata.metadata?.metadata_rows.map(row => {
-              return row.metadata_parts?.map(item => item.text?.toString()).join(metadata.metadata?.delimiter) || '';
-            }) || [],
-            duration: durationOverlay?.badges[0]?.text
-          });
-        } else if (item.is(YTNodes.Video)) {
-          homeRecommendations.value.push({
-            videoId: item.video_id,
-            title: item.title.toHTML() ?? '',
-            titleText: item.title.toString(),
-            thumbnail: item.best_thumbnail?.url || '',
-            authorAvatar: item.author.thumbnails[0].url,
-            metadata: [
-              item.author?.name.toString(),
-              item.short_view_count ? [ 
-                item.short_view_count?.toString(),
-                item.published?.toString() 
-              ].join(item.is_live ? '' : ' • ') : undefined
-            ],
-            duration: item.duration ? new Date(item.duration.seconds! * 1000).toISOString().substr(11, 8) : undefined
-          });
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching recommendations:', error);
-    addToast('Failed to load recommendations.', 'error');
-  } finally {
-    loading.value = false;
-  }
+			for (const item of items) {
+				if (item.is(YTNodes.LockupView)) {
+					if (item.content_type !== "VIDEO") continue;
+
+					const metadata = item.metadata;
+					const contentImage = item.content_image;
+
+					if (!metadata || !contentImage?.is(YTNodes.ThumbnailView)) continue;
+
+					const durationOverlay = contentImage.overlays
+						.find(
+							(overlay) =>
+								overlay.is(YTNodes.ThumbnailOverlayBadgeView) &&
+								overlay.position ===
+									"THUMBNAIL_OVERLAY_BADGE_POSITION_BOTTOM_END",
+						)
+						?.as(YTNodes.ThumbnailOverlayBadgeView);
+
+					homeRecommendations.value.push({
+						videoId: item.content_id,
+						title: metadata.title.toHTML() ?? "",
+						titleText: metadata.title.toString(),
+						thumbnail: contentImage.image[0].url,
+						metadata:
+							metadata.metadata?.metadata_rows.map((row) => {
+								return (
+									row.metadata_parts
+										?.map((item) => item.text?.toString())
+										.join(metadata.metadata?.delimiter) || ""
+								);
+							}) || [],
+						duration: durationOverlay?.badges[0]?.text,
+					});
+				} else if (item.is(YTNodes.Video)) {
+					homeRecommendations.value.push({
+						videoId: item.video_id,
+						title: item.title.toHTML() ?? "",
+						titleText: item.title.toString(),
+						thumbnail: item.best_thumbnail?.url || "",
+						authorAvatar: item.author.thumbnails[0].url,
+						metadata: [
+							item.author?.name.toString(),
+							item.short_view_count
+								? [
+										item.short_view_count?.toString(),
+										item.published?.toString(),
+									].join(item.is_live ? "" : " • ")
+								: undefined,
+						],
+						duration: item.duration
+							? new Date(item.duration.seconds! * 1000)
+									.toISOString()
+									.substr(11, 8)
+							: undefined,
+					});
+				}
+			}
+		}
+	} catch (error) {
+		console.error("Error fetching recommendations:", error);
+		addToast("Failed to load recommendations.", "error");
+	} finally {
+		loading.value = false;
+	}
 });
 </script>

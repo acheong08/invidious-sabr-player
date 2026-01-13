@@ -9,18 +9,21 @@ import {
   SabrError,
   UMPPartId
 } from 'googlevideo/protos';
-
-import { Constants } from 'youtubei.js/web';
-import type { OnesieHotConfig } from '@/utils/helpers';
-import { encryptRequest, fetchFunction, REDIRECTOR_STORAGE_KEY } from '@/utils/helpers';
+import type { Part } from 'googlevideo/shared-types';
 import { CompositeBuffer, UmpReader } from 'googlevideo/ump';
 import { base64ToU8 } from 'googlevideo/utils';
-import type { Part } from 'googlevideo/shared-types';
+import { Constants } from 'youtubei.js/web';
+import type { OnesieHotConfig } from '@/utils/helpers';
+import {
+  encryptRequest,
+  fetchFunction,
+  REDIRECTOR_STORAGE_KEY
+} from '@/utils/helpers';
 
 type OnesieRequestArgs = {
-  clientConfig: OnesieHotConfig;
-  innertubeRequest: Record<string, any>;
-}
+	clientConfig: OnesieHotConfig;
+	innertubeRequest: Record<string, any>;
+};
 
 type PartHandler = (part: Part) => void;
 
@@ -31,12 +34,8 @@ type PartHandler = (part: Part) => void;
 async function prepareOnesieRequest(args: OnesieRequestArgs) {
   const { innertubeRequest, clientConfig } = args;
 
-  const {
-    baseUrl,
-    clientKeyData,
-    encryptedClientKey,
-    onesieUstreamerConfig
-  } = clientConfig;
+  const { baseUrl, clientKeyData, encryptedClientKey, onesieUstreamerConfig } =
+		clientConfig;
 
   const headers = [
     {
@@ -61,11 +60,10 @@ async function prepareOnesieRequest(args: OnesieRequestArgs) {
     skipResponseEncryption: true
   }).finish();
 
-  const {
-    encrypted,
-    hmac,
-    iv
-  } = await encryptRequest(clientKeyData, onesieInnertubeRequest);
+  const { encrypted, hmac, iv } = await encryptRequest(
+    clientKeyData,
+    onesieInnertubeRequest
+  );
 
   const body = OnesieRequest.encode({
     urls: [],
@@ -82,11 +80,17 @@ async function prepareOnesieRequest(args: OnesieRequestArgs) {
       sabrContexts: [],
       unsentSabrContexts: [],
       clientInfo: {
-        clientName: parseInt(Constants.CLIENT_NAME_IDS[innertubeRequest.context.client.clientName as keyof typeof Constants.CLIENT_NAME_IDS]),
+        clientName: parseInt(
+          Constants.CLIENT_NAME_IDS[
+						innertubeRequest.context.client
+						  .clientName as keyof typeof Constants.CLIENT_NAME_IDS
+          ]
+        ),
         clientVersion: innertubeRequest.context.client.clientVersion
       }
     },
-    reloadPlaybackParams: innertubeRequest.playbackContext?.reloadPlaybackParams,
+    reloadPlaybackParams:
+			innertubeRequest.playbackContext?.reloadPlaybackParams,
     bufferedRanges: [],
     onesieUstreamerConfig
   }).finish();
@@ -109,7 +113,10 @@ export async function makePlayerRequest(args: OnesieRequestArgs) {
   let redirectorResponseUrl = localStorage.getItem(REDIRECTOR_STORAGE_KEY);
 
   if (!redirectorResponseUrl) {
-    const redirectorResponse = await fetchFunction(`https://redirector.googlevideo.com/initplayback?source=youtube&itag=0&pvi=0&pai=0&owc=yes&cmo:sensitive_content=yes&alr=yes&id=${Math.round(Math.random() * 1E5)}`, { method: 'GET' });
+    const redirectorResponse = await fetchFunction(
+      `https://redirector.googlevideo.com/initplayback?source=youtube&itag=0&pvi=0&pai=0&owc=yes&cmo:sensitive_content=yes&alr=yes&id=${Math.round(Math.random() * 1e5)}`,
+      { method: 'GET' }
+    );
     redirectorResponseUrl = await redirectorResponse.text();
     if (!redirectorResponseUrl.startsWith('https://'))
       throw new Error('Invalid redirector response');
@@ -133,7 +140,9 @@ export async function makePlayerRequest(args: OnesieRequestArgs) {
   });
 
   const arrayBuffer = await response.arrayBuffer();
-  const googUmp = new UmpReader(new CompositeBuffer([ new Uint8Array(arrayBuffer) ]));
+  const googUmp = new UmpReader(
+    new CompositeBuffer([ new Uint8Array(arrayBuffer) ])
+  );
 
   const onesie: (OnesieHeader & { data?: Uint8Array })[] = [];
 
@@ -165,21 +174,27 @@ export async function makePlayerRequest(args: OnesieRequestArgs) {
 
   googUmp.read((part) => {
     const handler = umpPartHandlers.get(part.type);
-    if (handler)
-      handler(part);
+    if (handler) handler(part);
   });
 
-  const onesiePlayerResponse = onesie.find((header) => header.type === OnesieHeaderType.ONESIE_PLAYER_RESPONSE);
+  const onesiePlayerResponse = onesie.find(
+    (header) => header.type === OnesieHeaderType.ONESIE_PLAYER_RESPONSE
+  );
 
   if (!onesiePlayerResponse?.cryptoParams)
     throw new Error('Crypto params not found');
 
   let responseData = onesiePlayerResponse.data;
 
-  if (responseData && onesiePlayerResponse.cryptoParams.compressionType === CompressionType.GZIP) {
+  if (
+    responseData &&
+		onesiePlayerResponse.cryptoParams.compressionType === CompressionType.GZIP
+  ) {
     const ds = new DecompressionStream('gzip');
     const stream = new Blob([ responseData as any ]).stream().pipeThrough(ds);
-    responseData = await new Response(stream).arrayBuffer().then((buf) => new Uint8Array(buf));
+    responseData = await new Response(stream)
+      .arrayBuffer()
+      .then((buf) => new Uint8Array(buf));
   }
 
   const onesieInnertubeResponse = OnesieInnertubeResponse.decode(responseData!);

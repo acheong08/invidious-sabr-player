@@ -3,43 +3,43 @@ import type { Misc } from 'youtubei.js/web';
 import { useProxySettings } from '@/composables/useProxySettings';
 
 export interface ProxySettings {
-  basePath: string;
+	basePath: string;
 }
 
 export interface VideoItemData {
-  videoId: string;
-  title: string;
-  titleText: string;
-  thumbnail: string;
-  authorAvatar?: string;
-  metadata: (string | undefined)[];
-  duration?: string;
+	videoId: string;
+	title: string;
+	titleText: string;
+	thumbnail: string;
+	authorAvatar?: string;
+	metadata: (string | undefined)[];
+	duration?: string;
 }
 
 export interface VideoDetails {
-  title: string;
-  channelName: string;
-  channelAvatar: string;
-  channelId: string;
-  subscribers: string;
-  views?: string;
-  publishDate?: string;
-  description?: Misc.Text;
+	title: string;
+	channelName: string;
+	channelAvatar: string;
+	channelId: string;
+	subscribers: string;
+	views?: string;
+	publishDate?: string;
+	description?: Misc.Text;
 }
 
 export interface OnesieHotConfig {
-  clientKeyData: Uint8Array;
-  encryptedClientKey: Uint8Array;
-  onesieUstreamerConfig: Uint8Array;
-  baseUrl: string;
-  keyExpiresInSeconds: number;
-  timestamp?: number;
+	clientKeyData: Uint8Array;
+	encryptedClientKey: Uint8Array;
+	onesieUstreamerConfig: Uint8Array;
+	baseUrl: string;
+	keyExpiresInSeconds: number;
+	timestamp?: number;
 }
 
 export interface EncryptedRequest {
-  encrypted: Uint8Array;
-  hmac: Uint8Array;
-  iv: Uint8Array;
+	encrypted: Uint8Array;
+	hmac: Uint8Array;
+	iv: Uint8Array;
 }
 
 export const REDIRECTOR_STORAGE_KEY = 'googlevideo_redirector';
@@ -69,7 +69,7 @@ export function isFirstTime() {
 
 export function handleImageError(img: HTMLImageElement) {
   img.src =
-    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9" fill="%23333"%3E%3Crect width="16" height="9" fill="%23333"/%3E%3Cpath d="M8 6a1 1 0 100-2 1 1 0 000 2z" fill="%23aaa"/%3E%3C/svg%3E';
+		'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9" fill="%23333"%3E%3Crect width="16" height="9" fill="%23333"/%3E%3Cpath d="M8 6a1 1 0 100-2 1 1 0 000 2z" fill="%23aaa"/%3E%3C/svg%3E';
 }
 
 export async function encryptRequest(
@@ -95,7 +95,7 @@ export async function encryptRequest(
     await window.crypto.subtle.encrypt(
       { name: 'AES-CTR', counter: iv, length: 128 },
       aesKey,
-      data as any
+			data as any
     )
   );
 
@@ -215,9 +215,9 @@ export function makeResponse(
   }
 
   const severity =
-    status === 401 || status === 403
-      ? shaka.util.Error.Severity.CRITICAL
-      : shaka.util.Error.Severity.RECOVERABLE;
+		status === 401 || status === 403
+		  ? shaka.util.Error.Severity.CRITICAL
+		  : shaka.util.Error.Severity.RECOVERABLE;
 
   throw new shaka.util.Error(
     severity,
@@ -259,7 +259,7 @@ export function configImageHttpProxy() {
       // Skip data URIs and URLs already proxied
       if (
         url.protocol === 'data:' ||
-        url.pathname.startsWith(PROXY_BASE_PATH)
+				url.pathname.startsWith(PROXY_BASE_PATH)
       ) {
         return;
       }
@@ -293,7 +293,7 @@ export function configImageHttpProxy() {
         });
       } else if (
         mutation.type === 'attributes' &&
-        mutation.attributeName === 'src'
+				mutation.attributeName === 'src'
       ) {
         rewriteSrc(mutation.target as HTMLImageElement);
       }
@@ -319,9 +319,9 @@ export async function fetchFunction(
   init?: RequestInit
 ): Promise<Response> {
   const url =
-    input instanceof URL
-      ? input
-      : new URL(typeof input === 'string' ? input : input.url);
+		input instanceof URL
+		  ? input
+		  : new URL(typeof input === 'string' ? input : input.url);
   const headers = new Headers(
     init?.headers ?? (input instanceof Request ? input.headers : undefined)
   );

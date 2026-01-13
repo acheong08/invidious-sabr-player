@@ -60,20 +60,23 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
-import { useYoutubePlayer } from '@/composables/useYoutubePlayer';
+import { onMounted, ref, watch } from "vue";
+import { useYoutubePlayer } from "@/composables/useYoutubePlayer";
 
-const { videoId } = defineProps<{ videoId: string; }>();
+const { videoId } = defineProps<{ videoId: string }>();
 
 const playerHostElement = ref<HTMLElement | null>(null);
 
 const { loadVideo } = useYoutubePlayer();
 
 async function load(id: string) {
-  if (!playerHostElement.value) return;
-  await loadVideo(id, playerHostElement.value);
+	if (!playerHostElement.value) return;
+	await loadVideo(id, playerHostElement.value);
 }
 
-watch(() => videoId, (newId) => load(newId));
+watch(
+	() => videoId,
+	(newId) => load(newId),
+);
 onMounted(() => load(videoId));
 </script>

@@ -74,6 +74,7 @@
 </template>
 
 <script lang="ts" setup>
-import { handleImageError, VideoItemData } from '@/utils/helpers';
+import { handleImageError, type VideoItemData } from "@/utils/helpers";
+
 defineProps<{ data: VideoItemData }>();
 </script>

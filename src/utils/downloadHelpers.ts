@@ -1,9 +1,9 @@
 import type { SabrFormat } from 'googlevideo/shared-types';
 
 export interface StartDownloadOptions {
-  selectedFormat: SabrFormat;
-  type: 'audio' | 'video';
-  filename: string;
+	selectedFormat: SabrFormat;
+	type: 'audio' | 'video';
+	filename: string;
 }
 
 export function bytesToMB(bytes: number): string {
@@ -36,7 +36,12 @@ export function determineFileExtension(mimeType: string): string {
   return 'bin';
 }
 
-export function createFileName(videoTitle: string, type: 'audio' | 'video', mimeType: string, qualityLabel?: string): string {
+export function createFileName(
+  videoTitle: string,
+  type: 'audio' | 'video',
+  mimeType: string,
+  qualityLabel?: string
+): string {
   const sanitizedTitle = videoTitle?.replace(/[^a-z0-9]/gi, '_') || 'unknown';
   const extension = determineFileExtension(mimeType);
   return `${sanitizedTitle}.${type}${qualityLabel ? `.${qualityLabel}` : ''}.${extension}`;

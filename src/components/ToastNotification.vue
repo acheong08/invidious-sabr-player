@@ -123,37 +123,37 @@
 </template>
 
 <script lang="ts" setup>
-import { onUnmounted, watchEffect } from 'vue';
-import { useToastStore } from '@/stores/toastStore';
+import { onUnmounted, watchEffect } from "vue";
+import { useToastStore } from "@/stores/toastStore";
 
 const { toasts, removeToast } = useToastStore();
 
 const timeouts = new Map<number, NodeJS.Timeout>();
 
 function removeToastNotification(id: number) {
-  if (timeouts.has(id)) {
-    clearTimeout(timeouts.get(id)!);
-    timeouts.delete(id);
-  }
-  removeToast(id);
+	if (timeouts.has(id)) {
+		clearTimeout(timeouts.get(id)!);
+		timeouts.delete(id);
+	}
+	removeToast(id);
 }
 
 watchEffect(() => {
-  toasts.value.forEach((toast) => {
-    if (!timeouts.has(toast.id)) {
-      const timeout = setTimeout(() => {
-        removeToast(toast.id);
-        timeouts.delete(toast.id);
-      }, toast.duration || 5000);
-      timeouts.set(toast.id, timeout);
-    }
-  });
+	toasts.value.forEach((toast) => {
+		if (!timeouts.has(toast.id)) {
+			const timeout = setTimeout(() => {
+				removeToast(toast.id);
+				timeouts.delete(toast.id);
+			}, toast.duration || 5000);
+			timeouts.set(toast.id, timeout);
+		}
+	});
 });
 
 onUnmounted(() => {
-  timeouts.forEach((timeout) => {
-    clearTimeout(timeout);
-  });
-  timeouts.clear();
+	timeouts.forEach((timeout) => {
+		clearTimeout(timeout);
+	});
+	timeouts.clear();
 });
 </script>

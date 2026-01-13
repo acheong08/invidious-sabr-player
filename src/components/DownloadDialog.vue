@@ -417,104 +417,133 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { FormatKeyUtils } from 'googlevideo/utils';
-import ArrowDownIcon from '@/components/icons/ArrowDownIcon.vue';
-import CloseIcon from '@/components/icons/CloseIcon.vue';
-import type { SabrFormat } from 'googlevideo/shared-types';
+import type { SabrFormat } from "googlevideo/shared-types";
+import { FormatKeyUtils } from "googlevideo/utils";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import ArrowDownIcon from "@/components/icons/ArrowDownIcon.vue";
+import CloseIcon from "@/components/icons/CloseIcon.vue";
 
 import {
-  bitrateToKbps,
-  bytesToMB,
-  createFileName,
-  determineFileExtension,
-  getFormatLabel,
-  StartDownloadOptions,
-} from '@/utils/downloadHelpers';
+	bitrateToKbps,
+	bytesToMB,
+	createFileName,
+	determineFileExtension,
+	getFormatLabel,
+	type StartDownloadOptions,
+} from "@/utils/downloadHelpers";
 
 const { formats, videoTitle } = defineProps<{
-  formats: SabrFormat[];
-  videoTitle: string;
+	formats: SabrFormat[];
+	videoTitle: string;
 }>();
 
 const emit = defineEmits<{
-  close: [];
-  startDownload: [ options: StartDownloadOptions ]
+	close: [];
+	startDownload: [options: StartDownloadOptions];
 }>();
 
 const visible = ref(true);
 const dialogRef = ref<HTMLElement>();
-const downloadType = ref<'video' | 'audio'>('video');
-const selectedFormatId = ref<string | number>('');
-const filename = ref('');
+const downloadType = ref<"video" | "audio">("video");
+const selectedFormatId = ref<string | number>("");
+const filename = ref("");
 
-const videoFormats = computed(() => formats.filter((f) => f.mimeType?.startsWith('video/')).sort((a, b) => (b.height || 0) - (a.height || 0)));
-const audioFormats = computed(() => formats.filter((f) => f.mimeType?.startsWith('audio/')).sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0)));
+const videoFormats = computed(() =>
+	formats
+		.filter((f) => f.mimeType?.startsWith("video/"))
+		.sort((a, b) => (b.height || 0) - (a.height || 0)),
+);
+const audioFormats = computed(() =>
+	formats
+		.filter((f) => f.mimeType?.startsWith("audio/"))
+		.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0)),
+);
 
 const audioLanguages = computed(() => {
-  const languages = new Set(audioFormats.value.map((f) => f.language || 'Undetermined'));
-  return Array.from(languages);
+	const languages = new Set(
+		audioFormats.value.map((f) => f.language || "Undetermined"),
+	);
+	return Array.from(languages);
 });
 
-const selectedAudioLanguage = ref(audioLanguages.value[0] || 'Undetermined');
+const selectedAudioLanguage = ref(audioLanguages.value[0] || "Undetermined");
 
 const availableQualities = computed(() => {
-  if (downloadType.value === 'video') {
-    return videoFormats.value;
-  }
-  return audioFormats.value.filter((f) => (f.language || 'Undetermined') === selectedAudioLanguage.value);
+	if (downloadType.value === "video") {
+		return videoFormats.value;
+	}
+	return audioFormats.value.filter(
+		(f) => (f.language || "Undetermined") === selectedAudioLanguage.value,
+	);
 });
 
 const selectedFormat = computed(() => {
-  return availableQualities.value.find((f) => FormatKeyUtils.getUniqueFormatId(f) === selectedFormatId.value);
+	return availableQualities.value.find(
+		(f) => FormatKeyUtils.getUniqueFormatId(f) === selectedFormatId.value,
+	);
 });
 
-watch([ availableQualities ], () => {
-  // Reset tge selected format when switching between video and audio.
-  if (!availableQualities.value.some((f) => FormatKeyUtils.getUniqueFormatId(f) === selectedFormatId.value)) {
-    selectedFormatId.value = FormatKeyUtils.getUniqueFormatId(availableQualities.value[0]);
-  }
-}, { immediate: true });
+watch(
+	[availableQualities],
+	() => {
+		// Reset tge selected format when switching between video and audio.
+		if (
+			!availableQualities.value.some(
+				(f) => FormatKeyUtils.getUniqueFormatId(f) === selectedFormatId.value,
+			)
+		) {
+			selectedFormatId.value = FormatKeyUtils.getUniqueFormatId(
+				availableQualities.value[0],
+			);
+		}
+	},
+	{ immediate: true },
+);
 
-watch(selectedFormat, (newFormat) => {
-  if (newFormat) {
-    filename.value = createFileName(
-      videoTitle,
-      downloadType.value,
-      newFormat.mimeType || '',
-      newFormat.qualityLabel || newFormat.audioQuality?.replace('AUDIO_QUALITY_', '')
-    );
-  } else {
-    filename.value = '';
-  }
-}, { immediate: true });
+watch(
+	selectedFormat,
+	(newFormat) => {
+		if (newFormat) {
+			filename.value = createFileName(
+				videoTitle,
+				downloadType.value,
+				newFormat.mimeType || "",
+				newFormat.qualityLabel ||
+					newFormat.audioQuality?.replace("AUDIO_QUALITY_", ""),
+			);
+		} else {
+			filename.value = "";
+		}
+	},
+	{ immediate: true },
+);
 
 function handleClose() {
-  visible.value = false;
+	visible.value = false;
 }
 
 function onAfterLeave() {
-  emit('close');
+	emit("close");
 }
 
 function getFormatDetails(format: SabrFormat): string {
-  const extension = determineFileExtension(format.mimeType || '').toUpperCase();
-  const bitrate = format.averageBitrate || format.bitrate;
-  return `${extension} · ${bitrateToKbps(bitrate)}`;
+	const extension = determineFileExtension(format.mimeType || "").toUpperCase();
+	const bitrate = format.averageBitrate || format.bitrate;
+	return `${extension} · ${bitrateToKbps(bitrate)}`;
 }
 
 function handleDownload() {
-  if (!selectedFormat.value) return;
-  emit('startDownload', {
-    selectedFormat: selectedFormat.value,
-    type: downloadType.value,
-    filename: filename.value
-  });
-  handleClose();
+	if (!selectedFormat.value) return;
+	emit("startDownload", {
+		selectedFormat: selectedFormat.value,
+		type: downloadType.value,
+		filename: filename.value,
+	});
+	handleClose();
 }
 
 onMounted(async () => {
-  await nextTick();
-  dialogRef.value?.focus();
+	await nextTick();
+	dialogRef.value?.focus();
 });
 </script>

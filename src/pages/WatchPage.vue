@@ -415,6 +415,7 @@ watch(
  * - Space: Toggle play/pause
  * - ArrowLeft: Seek backward 5 seconds
  * - ArrowRight: Seek forward 5 seconds
+ * - f: Toggle fullscreen
  */
 function handleKeydown(event: KeyboardEvent): void {
 	// Don't interfere with typing in input fields
@@ -441,6 +442,31 @@ function handleKeydown(event: KeyboardEvent): void {
 			event.preventDefault();
 			seek(5);
 			break;
+		case "KeyF":
+			event.preventDefault();
+			toggleFullscreen();
+			break;
+	}
+}
+
+/**
+ * Toggles fullscreen mode for the video player container.
+ */
+function toggleFullscreen(): void {
+	const videoElement = document.querySelector("video");
+	if (!videoElement) return;
+
+	const container = videoElement.closest(
+		".shaka-video-container",
+	) as HTMLElement;
+	if (!container) return;
+
+	if (!document.fullscreenElement) {
+		container.requestFullscreen().catch((err) => {
+			console.error("Error attempting to enable fullscreen:", err);
+		});
+	} else {
+		document.exitFullscreen();
 	}
 }
 

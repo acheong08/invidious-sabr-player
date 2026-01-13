@@ -773,10 +773,10 @@ export function useYoutubePlayer() {
     if (!manifestUri) throw new Error('Could not find a valid manifest URI.');
 
     playerStartTimeWatcher = watch(
-      () => route.query?.st,
+      () => route.query?.t,
       (newStartTime) => {
         const startTime = parseFloat(<string | undefined>newStartTime || '0');
-        if (!isNaN(startTime)) {
+        if (!isNaN(startTime) && startTime > 0) {
           videoElement.currentTime = startTime;
           console.info(
             '[Player]',
@@ -788,8 +788,8 @@ export function useYoutubePlayer() {
     );
 
     const startTime =
-			route.query?.st !== undefined
-			  ? parseFloat(route.query.st as string) || 0
+			route.query?.t !== undefined
+			  ? parseFloat(route.query.t as string) || 0
 			  : playbackStartConfig?.startSeconds;
 
     try {
@@ -908,6 +908,43 @@ export function useYoutubePlayer() {
   }
 
   /**
+	 * Seeks the video to a specific percentage of its duration.
+	 * @param percent - Percentage (0-100) of the video duration to seek to
+	 */
+  function seekToPercent(percent: number): void {
+    const { videoElement } = playerComponents.value;
+    if (!videoElement || !isFinite(videoElement.duration)) return;
+
+    const newTime = (percent / 100) * videoElement.duration;
+    videoElement.currentTime = newTime;
+  }
+
+  /**
+	 * Seeks the video to a specific time in seconds.
+	 * @param seconds - Time in seconds to seek to
+	 */
+  function seekToTime(seconds: number): void {
+    const { videoElement } = playerComponents.value;
+    if (!videoElement) return;
+
+    const newTime = Math.max(
+      0,
+      Math.min(videoElement.duration || Infinity, seconds)
+    );
+    videoElement.currentTime = newTime;
+  }
+
+  /**
+	 * Toggles mute state of the video.
+	 */
+  function toggleMute(): void {
+    const { videoElement } = playerComponents.value;
+    if (!videoElement) return;
+
+    videoElement.muted = !videoElement.muted;
+  }
+
+  /**
 	 * Gets the current video element (for external access if needed).
 	 */
   function getVideoElement(): HTMLVideoElement | null {
@@ -932,7 +969,10 @@ export function useYoutubePlayer() {
     playerState,
     loadVideo,
     togglePlayPause,
+    toggleMute,
     seek,
+    seekToPercent,
+    seekToTime,
     getVideoElement
   };
 }

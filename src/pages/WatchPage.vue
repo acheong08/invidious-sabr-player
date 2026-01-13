@@ -220,7 +220,7 @@ import type { VideoDetails, VideoItemData } from "@/utils/helpers";
 const route = useRoute();
 const { addToast } = useToastStore();
 const getInnertube = useInnertube();
-const { togglePlayPause, seek } = useYoutubePlayer();
+const { togglePlayPause, seek, seekToPercent, toggleMute } = useYoutubePlayer();
 
 // Support both /watch/:id and /watch?v=:id
 const getVideoId = () => {
@@ -337,6 +337,8 @@ watch(
  * - ArrowLeft: Seek backward 5 seconds
  * - ArrowRight: Seek forward 5 seconds
  * - f: Toggle fullscreen
+ * - m: Toggle mute
+ * - 0-9: Jump to percentage of video (0=0%, 9=90%)
  */
 function handleKeydown(event: KeyboardEvent): void {
 	// Don't interfere with typing in input fields
@@ -367,6 +369,25 @@ function handleKeydown(event: KeyboardEvent): void {
 			event.preventDefault();
 			toggleFullscreen();
 			break;
+		case "KeyM":
+			event.preventDefault();
+			toggleMute();
+			break;
+		case "Digit0":
+		case "Digit1":
+		case "Digit2":
+		case "Digit3":
+		case "Digit4":
+		case "Digit5":
+		case "Digit6":
+		case "Digit7":
+		case "Digit8":
+		case "Digit9": {
+			event.preventDefault();
+			const digit = parseInt(event.code.replace("Digit", ""), 10);
+			seekToPercent(digit * 10);
+			break;
+		}
 	}
 }
 

@@ -65,7 +65,9 @@
 
 <script lang="ts" setup>
 import { computed } from "vue";
+import { useRoute } from "vue-router";
 import { Misc, YTNodes } from "youtubei.js/web";
+import { useYoutubePlayer } from "@/composables/useYoutubePlayer";
 import { router } from "@/router";
 import { escape } from "@/utils/helpers";
 import UniqueKeyGenerator from "@/utils/keyGen";
@@ -76,6 +78,8 @@ const props = defineProps<{
 	collapsedLines?: number;
 }>();
 
+const route = useRoute();
+const { seekToTime } = useYoutubePlayer();
 const keyGen = new UniqueKeyGenerator();
 
 const collapsedStyle = computed(() => {
@@ -86,6 +90,13 @@ const collapsedStyle = computed(() => {
 	}
 	return {};
 });
+
+// Get current video ID from route
+function getCurrentVideoId(): string {
+	if (route.params.id) return route.params.id.toString();
+	if (route.query.v) return route.query.v.toString();
+	return "";
+}
 
 function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
 	event.stopPropagation();
@@ -101,10 +112,18 @@ function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
 
 	if (endpoint.command.is(YTNodes.WatchEndpoint)) {
 		const startTimeSeconds = endpoint.payload.startTimeSeconds;
+		const targetVideoId = endpoint.payload.videoId;
+		const currentVideoId = getCurrentVideoId();
 
-		let path = `/watch?v=${endpoint.payload.videoId}`;
+		// If clicking a timestamp for the same video, seek directly without navigation
+		if (targetVideoId === currentVideoId && startTimeSeconds !== undefined) {
+			seekToTime(startTimeSeconds);
+			return;
+		}
+
+		let path = `/watch?v=${targetVideoId}`;
 		if (startTimeSeconds) {
-			path += `&st=${startTimeSeconds}`;
+			path += `&t=${startTimeSeconds}`;
 		}
 
 		router.push(path);

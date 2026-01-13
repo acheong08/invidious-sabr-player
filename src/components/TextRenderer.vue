@@ -35,8 +35,8 @@
       </template>
       <template v-else>
         <template v-if="run.attachment && run.endpoint">
-          <a :href="run.endpoint.toURL()" class="yt-ch-link" rel="noopener noreferrer"
-             target="_blank" @click="(event) => onLinkClick(event, run.endpoint)">
+          <a :href="getHref(run.endpoint)" class="yt-ch-link" rel="noopener noreferrer"
+             @click="(event) => onLinkClick(event, run.endpoint)">
             <img
               v-if="attachmentData.get(keyGen.generate(run)).imageURL"
               :src="attachmentData.get(keyGen.generate(run)).imageURL"
@@ -51,7 +51,7 @@
           </a>
         </template>
         <template v-else-if="run.endpoint">
-          <a :href="run.endpoint.toURL()" rel="noopener noreferrer" target="_blank"
+          <a :href="getHref(run.endpoint)" rel="noopener noreferrer"
              @click="(event) => onLinkClick(event, run.endpoint)"
              v-html="renderText(run)"/>
         </template>
@@ -142,6 +142,38 @@ function parseYouTubeVideoUrl(urlString: string): { videoId: string; t?: string 
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Gets the proper href for an endpoint, rewriting YouTube video URLs to the current host.
+ */
+function getHref(endpoint?: YTNodes.NavigationEndpoint): string {
+	if (!endpoint) return "#";
+
+	if (endpoint.name === "urlEndpoint") {
+		const url = endpoint.toURL();
+		if (!url) return "#";
+
+		const parsed = parseYouTubeVideoUrl(url);
+		if (parsed) {
+			let href = `/watch?v=${parsed.videoId}`;
+			if (parsed.t) href += `&t=${parsed.t}`;
+			return href;
+		}
+
+		return url;
+	}
+
+	if (endpoint.command?.is(YTNodes.WatchEndpoint)) {
+		const targetVideoId = endpoint.payload.videoId;
+		const startTimeSeconds = endpoint.payload.startTimeSeconds;
+
+		let href = `/watch?v=${targetVideoId}`;
+		if (startTimeSeconds) href += `&t=${startTimeSeconds}`;
+		return href;
+	}
+
+	return endpoint.toURL() || "#";
 }
 
 function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {

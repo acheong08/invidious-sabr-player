@@ -98,6 +98,66 @@ function getCurrentVideoId(): string {
 	return "";
 }
 
+// YouTube hostnames that should be rewritten to the current host
+const YOUTUBE_HOSTS = [
+	"youtube.com",
+	"www.youtube.com",
+	"m.youtube.com",
+	"youtu.be",
+];
+
+/**
+ * Checks if a URL is a YouTube URL and returns the rewritten path if applicable.
+ * Returns null if the URL is not a YouTube URL or cannot be handled internally.
+ */
+function rewriteYouTubeUrl(urlString: string): string | null {
+	try {
+		const url = new URL(urlString);
+		const host = url.hostname.toLowerCase();
+
+		if (!YOUTUBE_HOSTS.includes(host)) {
+			return null;
+		}
+
+		// Handle youtu.be short URLs (e.g., youtu.be/VIDEO_ID)
+		if (host === "youtu.be") {
+			const videoId = url.pathname.slice(1); // Remove leading /
+			if (videoId) {
+				const t = url.searchParams.get("t");
+				let path = `/watch?v=${videoId}`;
+				if (t) path += `&t=${t}`;
+				return path;
+			}
+			return null;
+		}
+
+		// Handle youtube.com watch URLs
+		if (url.pathname === "/watch") {
+			const videoId = url.searchParams.get("v");
+			if (videoId) {
+				const t = url.searchParams.get("t");
+				let path = `/watch?v=${videoId}`;
+				if (t) path += `&t=${t}`;
+				return path;
+			}
+		}
+
+		// Handle youtube.com/channel/ URLs
+		if (url.pathname.startsWith("/channel/")) {
+			return url.pathname;
+		}
+
+		// Handle youtube.com/@username URLs
+		if (url.pathname.startsWith("/@")) {
+			return url.pathname;
+		}
+
+		return null;
+	} catch {
+		return null;
+	}
+}
+
 function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
 	event.stopPropagation();
 	event.preventDefault();
@@ -105,7 +165,29 @@ function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
 	if (!endpoint) return;
 
 	if (endpoint.name === "urlEndpoint") {
-		window.open(endpoint.toURL(), "_blank");
+		const url = endpoint.toURL();
+		if (!url) return;
+
+		const rewrittenPath = rewriteYouTubeUrl(url);
+
+		if (rewrittenPath) {
+			// Check if it's a watch URL for the current video with a timestamp
+			if (rewrittenPath.startsWith("/watch?v=")) {
+				const params = new URLSearchParams(rewrittenPath.split("?")[1]);
+				const targetVideoId = params.get("v");
+				const t = params.get("t");
+				const currentVideoId = getCurrentVideoId();
+
+				if (targetVideoId === currentVideoId && t) {
+					seekToTime(parseInt(t, 10));
+					return;
+				}
+			}
+			router.push(rewrittenPath);
+		} else {
+			window.open(url, "_blank");
+		}
+		return;
 	}
 
 	if (!endpoint.command) return;

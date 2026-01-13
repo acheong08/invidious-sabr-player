@@ -74,40 +74,43 @@ export function useSabrDownloader() {
     const videoPlaybackUstreamerConfig =
 			playerResponse.player_config?.media_common_config
 			  .media_ustreamer_request_config?.video_playback_ustreamer_config;
+    // Pre-compute the exact set of audio format keys to keep.
+    // This filters and deduplicates audio formats, keeping only one per itag.
+    // Priority: default audio track > first encountered original track > first encountered
+    const adaptiveFormats =
+			playerResponse.streaming_data?.adaptive_formats || [];
+    const keepAudioFormatKeys = new Set(
+      adaptiveFormats
+        .filter((f) => {
+          if (f.width) return false; // Audio only
+          if (f.is_drc) return false; // Remove DRC
+          if (f.xtags && !f.is_original) return false; // Remove non-original with xtags
+          return true;
+        })
+        .reduce<typeof adaptiveFormats>((acc, format) => {
+          const existing = acc.find((f) => f.itag === format.itag);
+          if (!existing) {
+            acc.push(format);
+          } else if (
+            format.audio_track?.audio_is_default &&
+						!existing.audio_track?.audio_is_default
+          ) {
+            // Replace with default audio track
+            const idx = acc.indexOf(existing);
+            acc[idx] = format;
+          }
+          return acc;
+        }, [])
+        .map((f) => `${f.itag}:${f.xtags || ''}`)
+    );
+
     const formats =
-			playerResponse.streaming_data?.adaptive_formats
-			  .map(buildSabrFormat)
-			  .filter((format) => {
-			    // Keep formats without xtags (default tracks)
-			    if (!format.xtags) return true;
-			    // Remove DRC variants to prevent duplicate itag issues
-			    if (format.isDrc) return false;
-			    // Keep original audio tracks
-			    if (format.isOriginal) return true;
-			    // Filter out dubbed, auto-dubbed, descriptive, secondary variants
-			    return false;
-			  })
-			  .reduce<SabrFormat[]>((acc, format) => {
-			    // Video formats: no deduplication needed
-			    if (format.width) {
-			      acc.push(format);
-			      return acc;
-			    }
-			    // Audio formats: deduplicate by itag to prevent mismatches.
-			    // Prefer formats with xtags (explicit original track metadata) over those without.
-			    const existingIndex = acc.findIndex(
-			      (f) => !f.width && f.itag === format.itag
-			    );
-			    if (existingIndex === -1) {
-			      acc.push(format);
-			    } else {
-			      const existing = acc[existingIndex];
-			      if (format.xtags && !existing.xtags) {
-			        acc[existingIndex] = format;
-			      }
-			    }
-			    return acc;
-			  }, []) || [];
+			adaptiveFormats.map(buildSabrFormat).filter((format) => {
+			  // Keep all video formats
+			  if (format.width) return true;
+			  // Keep only audio formats in our pre-computed set
+			  return keepAudioFormatKeys.has(`${format.itag}:${format.xtags || ''}`);
+			}) || [];
 
     if (!contentBinding)
       throw new Error('Failed to retrieve content binding for download.');

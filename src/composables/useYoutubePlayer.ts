@@ -1,6 +1,5 @@
 import type { ReloadPlaybackContext } from 'googlevideo/protos';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
-import type { SabrFormat } from 'googlevideo/shared-types';
 import { buildSabrFormat } from 'googlevideo/utils';
 
 import shaka from 'shaka-player/dist/shaka-player.ui';
@@ -661,6 +660,41 @@ export function useYoutubePlayer() {
       });
     }
 
+    // Pre-compute the exact set of audio format keys to keep for VOD content.
+    // This ensures consistency between setServerAbrFormats and toDash manifest.
+    // We filter and deduplicate audio formats, keeping only one per itag.
+    // Priority: default audio track > first encountered original track > first encountered
+    let keepAudioFormatKeys: Set<string> | undefined;
+    if (videoInfo.streaming_data && !isPostLiveDVR && !isLive) {
+      keepAudioFormatKeys = new Set(
+        videoInfo.streaming_data.adaptive_formats
+          .filter((f) => {
+            if (f.width) return false; // Audio only
+            if (f.is_drc) return false; // Remove DRC
+            if (f.xtags && !f.is_original) return false; // Remove non-original with xtags
+            return true;
+          })
+          .reduce<typeof videoInfo.streaming_data.adaptive_formats>(
+            (acc, format) => {
+              const existing = acc.find((f) => f.itag === format.itag);
+              if (!existing) {
+                acc.push(format);
+              } else if (
+                format.audio_track?.audio_is_default &&
+								!existing.audio_track?.audio_is_default
+              ) {
+                // Replace with default audio track
+                const idx = acc.indexOf(existing);
+                acc[idx] = format;
+              }
+              return acc;
+            },
+            []
+          )
+          .map((f) => `${f.itag}:${f.xtags || ''}`)
+      );
+    }
+
     if (videoInfo.streaming_data && !isPostLiveDVR && !isLive) {
       sabrAdapter.setStreamingURL(
         await innertube.session.player!.decipher(
@@ -671,37 +705,13 @@ export function useYoutubePlayer() {
         videoInfo.streaming_data.adaptive_formats
           .map(buildSabrFormat)
           .filter((format) => {
-            // Keep formats without xtags (default tracks)
-            if (!format.xtags) return true;
-            // Remove DRC variants to prevent duplicate itag issues
-            if (format.isDrc) return false;
-            // Keep original audio tracks
-            if (format.isOriginal) return true;
-            // Filter out dubbed, auto-dubbed, descriptive, secondary variants
-            return false;
-          })
-          .reduce<SabrFormat[]>((acc, format) => {
-            // Video formats: no deduplication needed
-            if (format.width) {
-              acc.push(format);
-              return acc;
-            }
-            // Audio formats: deduplicate by itag to prevent mismatches between
-            // DASH manifest and SABR format lookup. Prefer formats with xtags
-            // (explicit original track metadata) over those without.
-            const existingIndex = acc.findIndex(
-              (f) => !f.width && f.itag === format.itag
+            // Keep all video formats
+            if (format.width) return true;
+            // Keep only audio formats in our pre-computed set
+            return keepAudioFormatKeys!.has(
+              `${format.itag}:${format.xtags || ''}`
             );
-            if (existingIndex === -1) {
-              acc.push(format);
-            } else {
-              const existing = acc[existingIndex];
-              if (format.xtags && !existing.xtags) {
-                acc[existingIndex] = format;
-              }
-            }
-            return acc;
-          }, [])
+          })
       );
       sabrAdapter.setUstreamerConfig(
         videoInfo.player_config?.media_common_config
@@ -721,44 +731,16 @@ export function useYoutubePlayer() {
 					`${videoInfo.streaming_data.dash_manifest_url}/mpd_version/7`;
       } else {
         try {
-          // Filter audio tracks to keep only original audio and prevent duplicate itag issues.
-          // - Remove DRC variants (cause "Could not determine current format" errors)
-          // - Remove dubbed, auto-dubbed, descriptive, secondary audio variants
-          // - Keep original audio tracks (identified by is_original flag)
-          // - Deduplicate audio formats by itag, preferring those with xtags (explicit metadata)
-          // This must match the filter applied to setServerAbrFormats() above.
+          // Filter audio tracks using the same pre-computed set as setServerAbrFormats.
+          // This ensures DASH manifest and SABR format lookup use identical format keys.
           // Note: format_filter is a reject filter - return true to EXCLUDE the format.
-
-          // First pass: identify which audio itags have a format with xtags
-          const audioItagsWithXtags = new Set(
-						videoInfo
-						  .streaming_data!.adaptive_formats.filter(
-						    (f) => !f.width && f.xtags && f.is_original && !f.is_drc
-						  )
-						  .map((f) => f.itag)
-          );
-
           const dashManifest = await videoInfo.toDash({
             format_filter: (format) => {
-              // Video formats: apply standard filter only
-              if (format.width) {
-                return false; // Keep all video formats
-              }
-
-              // Audio format filtering:
-              // 1. Remove DRC variants
-              if (format.is_drc) return true;
-
-              // 2. Remove non-original variants (dubbed, auto-dubbed, etc.)
-              if (format.xtags && !format.is_original) return true;
-
-              // 3. Deduplication: if this itag has a version with xtags,
-              //    reject the version without xtags
-              if (!format.xtags && audioItagsWithXtags.has(format.itag)) {
-                return true; // Reject: prefer the version with xtags
-              }
-
-              return false; // Keep this format
+              // Keep all video formats
+              if (format.width) return false;
+              // Reject audio formats not in our pre-computed set
+              const key = `${format.itag}:${format.xtags || ''}`;
+              return !keepAudioFormatKeys!.has(key);
             },
             manifest_options: {
               is_sabr: true,

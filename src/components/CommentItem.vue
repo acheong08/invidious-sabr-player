@@ -198,7 +198,7 @@
         <span class="published">{{ comment.publishedText }}</span>
         <span v-if="comment.isEdited" class="edited-badge">(edited)</span>
       </div>
-      <div class="text" v-html="comment.contentHtml" />
+      <div class="text" v-html="comment.contentHtml" @click="handleContentClick" />
       <div class="actions">
         <span class="like-count">
           <svg class="like-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -255,6 +255,7 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
+import { useYoutubePlayer } from "@/composables/useYoutubePlayer";
 import type { Comment } from "@/types/comments";
 import { handleImageError } from "@/utils/helpers";
 
@@ -270,6 +271,8 @@ const props = defineProps<{
 	}>;
 	isReply?: boolean;
 }>();
+
+const { seekToTime } = useYoutubePlayer();
 
 const showReplies = ref(false);
 const replies = ref<Comment[]>([]);
@@ -295,6 +298,39 @@ function formatLikeCount(count: number): string {
 		return (count / 1000).toFixed(1).replace(/\.0$/, "") + "K";
 	}
 	return count.toString();
+}
+
+/**
+ * Handle clicks on comment content to intercept timestamp links.
+ * Timestamps link to /watch?v=VIDEO_ID&t=SECONDS
+ */
+function handleContentClick(event: MouseEvent) {
+	const target = event.target as HTMLElement;
+	const anchor = target.closest("a");
+	if (!anchor) return;
+
+	const href = anchor.getAttribute("href");
+	if (!href) return;
+
+	try {
+		// Handle relative URLs like /watch?v=...&t=...
+		const url = new URL(href, window.location.origin);
+		
+		if (url.pathname === "/watch") {
+			const videoId = url.searchParams.get("v");
+			const t = url.searchParams.get("t");
+			
+			// If it's a timestamp for the current video, seek directly
+			if (videoId === props.videoId && t) {
+				event.preventDefault();
+				event.stopPropagation();
+				seekToTime(parseInt(t, 10));
+				return;
+			}
+		}
+	} catch {
+		// Invalid URL, let it navigate normally
+	}
 }
 
 async function toggleReplies() {

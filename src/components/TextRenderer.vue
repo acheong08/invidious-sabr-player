@@ -195,9 +195,14 @@ function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
 				seekToTime(parseInt(parsed.t, 10));
 				return;
 			}
+			// YouTube video URL for different video - navigate in same tab
+			let newUrl = `/watch?v=${parsed.videoId}`;
+			if (parsed.t) newUrl += `&t=${parsed.t}`;
+			window.location.href = newUrl;
+			return;
 		}
 
-		// For all other URLs (including YouTube videos for different videos), open externally
+		// For non-YouTube URLs, open in new tab
 		window.open(url, "_blank");
 		return;
 	}
@@ -215,12 +220,19 @@ function onLinkClick(event: MouseEvent, endpoint?: YTNodes.NavigationEndpoint) {
 			return;
 		}
 
-		// For different videos, open externally
-		let url = `${window.location.origin}/watch?v=${targetVideoId}`;
+		// For different videos, navigate in same tab
+		let url = `/watch?v=${targetVideoId}`;
 		if (startTimeSeconds) {
 			url += `&t=${startTimeSeconds}`;
 		}
-		window.open(url, "_blank");
+		window.location.href = url;
+		return;
+	}
+
+	// Fallback: navigate to href
+	const href = getHref(endpoint);
+	if (href && href !== "#") {
+		window.location.href = href;
 	}
 }
 

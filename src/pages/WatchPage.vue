@@ -352,6 +352,11 @@ function handleKeydown(event: KeyboardEvent): void {
 		return;
 	}
 
+	// Don't interfere with keyboard shortcuts using modifier keys
+	if (event.ctrlKey || event.metaKey || event.altKey) {
+		return;
+	}
+
 	switch (event.code) {
 		case "Space":
 			event.preventDefault(); // Prevent page scroll

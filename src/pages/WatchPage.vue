@@ -145,51 +145,6 @@
   background-color: #5e5e5e7c;
 }
 
-
-.download-btn-container {
-  position: relative;
-  margin-left: 8px;
-}
-
-.download-btn {
-  display: flex;
-  align-items: center;
-  background: #333;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 12px;
-  min-width: 112px;
-  height: 30px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background 0.2s;
-  position: relative;
-  justify-content: center;
-  opacity: 0.7;
-  z-index: 2;
-  overflow: hidden;
-}
-
-.download-btn:hover {
-  background: #393939;
-}
-
-.download-btn:disabled {
-  cursor: not-allowed;
-}
-
-.progress-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background-color: #4a4a4a;
-  border-radius: 6px;
-  z-index: -1;
-  transition: width 0.1s linear;
-}
-
 .button-content {
   display: flex;
   align-items: center;
@@ -235,20 +190,6 @@
           <div class="video-stats">
             <span class="views" v-if="videoDetails.views">{{ videoDetails.views }}</span>
             <span class="date" v-if="videoDetails.publishDate">{{ videoDetails.publishDate }}</span>
-            <div class="separator"/>
-            <div class="download-btn-container">
-              <button class="download-btn" :title="isDownloading ? 'Cancel' : 'Download'" @click="isDownloading ? abortDownload() : openDownloadDialog(videoId)" :disabled="isPreparingDownload">
-                <div class="progress-fill" v-if="isDownloading" :style="{ width: `${downloadProgress}%` }" />
-                <div class="button-content">
-                  <div v-if="isPreparingDownload" class="button-spinner"></div>
-                  <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align: middle;">
-                    <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" stroke="currentColor" stroke-width="2"
-                          stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  <span style="margin-left:6px;">{{ isPreparingDownload ? 'Loading...' : (isDownloading ? `${Math.round(downloadProgress)}%` : 'Download') }}</span>
-                </div>
-              </button>
-            </div>
           </div>
         </div>
         <div class="description" v-if="videoDetails.description">
@@ -260,13 +201,6 @@
     <div class="secondary">
       <RelatedVideoItem v-for="item in relatedVideos" :key="item.videoId" :data="item"/>
     </div>
-    <DownloadDialog
-      v-if="isChoosingFormats"
-      :formats="sabrFormats"
-      :video-title="videoDetails?.title || ''"
-      @close="isChoosingFormats = false"
-      @start-download="startDownload"
-    />
   </div>
 </template>
 
@@ -275,12 +209,10 @@ import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { YTNodes } from "youtubei.js/web";
 import CommentsSection from "@/components/CommentsSection.vue";
-import DownloadDialog from "@/components/DownloadDialog.vue";
 import RelatedVideoItem from "@/components/RelatedVideoItem.vue";
 import TextRenderer from "@/components/TextRenderer.vue";
 import VideoPlayer from "@/components/VideoPlayer.vue";
 import { useInnertube } from "@/composables/useInnertube";
-import { useSabrDownloader } from "@/composables/useSabrDownloader";
 import { useYoutubePlayer } from "@/composables/useYoutubePlayer";
 import { useToastStore } from "@/stores/toastStore";
 import type { VideoDetails, VideoItemData } from "@/utils/helpers";
@@ -289,17 +221,6 @@ const route = useRoute();
 const { addToast } = useToastStore();
 const getInnertube = useInnertube();
 const { togglePlayPause, seek } = useYoutubePlayer();
-
-const {
-	isChoosingFormats,
-	isPreparingDownload,
-	isDownloading,
-	downloadProgress,
-	sabrFormats,
-	openDownloadDialog,
-	startDownload,
-	abortDownload,
-} = useSabrDownloader();
 
 // Support both /watch/:id and /watch?v=:id
 const getVideoId = () => {

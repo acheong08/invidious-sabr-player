@@ -108,7 +108,7 @@
 </style>
 
 <template>
-  <router-link class="grid-video-item" :to="`/watch?v=${data.videoId}`">
+  <a class="grid-video-item" :href="`/watch?v=${data.videoId}`">
     <div class="thumbnail-container">
       <img
         :src="data.thumbnail"
@@ -135,7 +135,7 @@
         </div>
       </div>
     </div>
-  </router-link>
+  </a>
 </template>
 
 <script lang="ts" setup>

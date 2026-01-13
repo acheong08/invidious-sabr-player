@@ -55,7 +55,7 @@
 </style>
 
 <template>
-  <router-link class="related-video-item" :to="`/watch?v=${data.videoId}`">
+  <a class="related-video-item" :href="`/watch?v=${data.videoId}`">
     <div class="thumbnail-container">
       <img 
         :src="data.thumbnail"
@@ -70,7 +70,7 @@
       <h4 class="title" v-html="data.title" :title="data.titleText" /> 
       <p class="metadata" v-for="metadataItem in data.metadata">{{ metadataItem }}</p>
     </div>
-  </router-link>
+  </a>
 </template>
 
 <script lang="ts" setup>

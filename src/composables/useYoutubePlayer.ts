@@ -1,5 +1,6 @@
 import type { ReloadPlaybackContext } from 'googlevideo/protos';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
+import type { SabrFormat } from 'googlevideo/shared-types';
 import { buildSabrFormat } from 'googlevideo/utils';
 
 import shaka from 'shaka-player/dist/shaka-player.ui';
@@ -679,6 +680,28 @@ export function useYoutubePlayer() {
             // Filter out dubbed, auto-dubbed, descriptive, secondary variants
             return false;
           })
+          .reduce<SabrFormat[]>((acc, format) => {
+            // Video formats: no deduplication needed
+            if (format.width) {
+              acc.push(format);
+              return acc;
+            }
+            // Audio formats: deduplicate by itag to prevent mismatches between
+            // DASH manifest and SABR format lookup. Prefer formats with xtags
+            // (explicit original track metadata) over those without.
+            const existingIndex = acc.findIndex(
+              (f) => !f.width && f.itag === format.itag
+            );
+            if (existingIndex === -1) {
+              acc.push(format);
+            } else {
+              const existing = acc[existingIndex];
+              if (format.xtags && !existing.xtags) {
+                acc[existingIndex] = format;
+              }
+            }
+            return acc;
+          }, [])
       );
       sabrAdapter.setUstreamerConfig(
         videoInfo.player_config?.media_common_config
@@ -702,18 +725,40 @@ export function useYoutubePlayer() {
           // - Remove DRC variants (cause "Could not determine current format" errors)
           // - Remove dubbed, auto-dubbed, descriptive, secondary audio variants
           // - Keep original audio tracks (identified by is_original flag)
+          // - Deduplicate audio formats by itag, preferring those with xtags (explicit metadata)
           // This must match the filter applied to setServerAbrFormats() above.
           // Note: format_filter is a reject filter - return true to EXCLUDE the format.
+
+          // First pass: identify which audio itags have a format with xtags
+          const audioItagsWithXtags = new Set(
+						videoInfo
+						  .streaming_data!.adaptive_formats.filter(
+						    (f) => !f.width && f.xtags && f.is_original && !f.is_drc
+						  )
+						  .map((f) => f.itag)
+          );
+
           const dashManifest = await videoInfo.toDash({
             format_filter: (format) => {
-              // Keep formats without xtags (default tracks)
-              if (!format.xtags) return false;
-              // Remove DRC variants to prevent duplicate itag issues
+              // Video formats: apply standard filter only
+              if (format.width) {
+                return false; // Keep all video formats
+              }
+
+              // Audio format filtering:
+              // 1. Remove DRC variants
               if (format.is_drc) return true;
-              // Keep original audio tracks
-              if (format.is_original) return false;
-              // Filter out dubbed, auto-dubbed, descriptive, secondary variants
-              return true;
+
+              // 2. Remove non-original variants (dubbed, auto-dubbed, etc.)
+              if (format.xtags && !format.is_original) return true;
+
+              // 3. Deduplication: if this itag has a version with xtags,
+              //    reject the version without xtags
+              if (!format.xtags && audioItagsWithXtags.has(format.itag)) {
+                return true; // Reject: prefer the version with xtags
+              }
+
+              return false; // Keep this format
             },
             manifest_options: {
               is_sabr: true,

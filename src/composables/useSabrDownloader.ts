@@ -86,7 +86,28 @@ export function useSabrDownloader() {
 			    if (format.isOriginal) return true;
 			    // Filter out dubbed, auto-dubbed, descriptive, secondary variants
 			    return false;
-			  }) || [];
+			  })
+			  .reduce<SabrFormat[]>((acc, format) => {
+			    // Video formats: no deduplication needed
+			    if (format.width) {
+			      acc.push(format);
+			      return acc;
+			    }
+			    // Audio formats: deduplicate by itag to prevent mismatches.
+			    // Prefer formats with xtags (explicit original track metadata) over those without.
+			    const existingIndex = acc.findIndex(
+			      (f) => !f.width && f.itag === format.itag
+			    );
+			    if (existingIndex === -1) {
+			      acc.push(format);
+			    } else {
+			      const existing = acc[existingIndex];
+			      if (format.xtags && !existing.xtags) {
+			        acc[existingIndex] = format;
+			      }
+			    }
+			    return acc;
+			  }, []) || [];
 
     if (!contentBinding)
       throw new Error('Failed to retrieve content binding for download.');
